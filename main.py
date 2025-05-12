@@ -4,113 +4,230 @@ import shutil
 import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QPushButton, QVBoxLayout,
                            QWidget, QFileDialog, QLineEdit, QLabel, QHBoxLayout,
-                           QFrame, QSizePolicy, QSpacerItem, QMessageBox)
+                           QFrame, QSizePolicy, QSpacerItem, QMessageBox, QComboBox,
+                           QDialog)  # QComboBox와 QDialog 추가
 from PyQt5.QtGui import QFont, QDragEnterEvent, QDropEvent, QPixmap, QImage, QPainter
 from PyQt5.QtCore import Qt
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PIL import Image
 
-class DropArea(QFrame):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
-        self.setLineWidth(2)
-        self.setMidLineWidth(1)
-        self.setMinimumSize(300, 150)  # 최소 크기 설정
-        self.setAcceptDrops(True)  # 드롭 활성화
 
-        # 점선 테두리 스타일 설정
+class DropZone(QLabel):
+    """개별 드롭 존"""
+
+    def __init__(self, zone_id, parent_drop_area):
+        super().__init__()
+        self.zone_id = zone_id
+        self.parent_drop_area = parent_drop_area
+        self.setAcceptDrops(True)
+
+        # 기본 스타일 설정
+        self.setAlignment(Qt.AlignCenter)
+        self.setFont(QFont("Arial", 12))
+        self.setMinimumSize(280, 120)
+        self.setText(f"사진 {zone_id + 1}\n드롭하세요")
+
+        # 점선 테두리 스타일
         self.setStyleSheet("""
-            DropArea {
+            QLabel {
                 border: 2px dashed #aaa;
-                border-radius: 5px;
+                border-radius: 8px;
                 background-color: #f8f8f8;
-            }
-            DropArea:hover {
-                border-color: #007ACC;
+                color: #555;
+                padding: 10px;
+                margin: 5px;
             }
         """)
 
-        # 안내 텍스트 추가
-        layout = QVBoxLayout(self)
-        layout.setSpacing(10)  # 간격 줄이기
-
-        self.label = QLabel("여기에 사진을 드롭하세요")
-        self.label.setAlignment(Qt.AlignCenter)
-        self.label.setFont(QFont("Arial", 14))
-        self.label.setStyleSheet("color: #555;")
-        layout.addWidget(self.label)
-
-        # 파일 선택 버튼
-        self.select_btn = QPushButton("또는 파일 선택하기")
-        self.select_btn.setFont(QFont("Arial", 12))
-        layout.addWidget(self.select_btn)
-
-        self.parent_window = parent
-
-    def dragEnterEvent(self, event: QDragEnterEvent):
+    def dragEnterEvent(self, event):
         # 부모 창의 가공 상태 확인
-        if hasattr(self.parent_window, 'processed_file') and self.parent_window.processed_file:
-            # 이미 가공이 완료된 상태면 드래그 무시
+        if hasattr(self.parent_drop_area.parent_window,
+                   'processed_file') and self.parent_drop_area.parent_window.processed_file:
             event.ignore()
             return
 
-        # 드래그된 객체가 URL을 가지고 있는지 확인
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
+            # 해당 영역만 하이라이트
             self.setStyleSheet("""
-                DropArea {
-                    border: 2px dashed #007ACC;
-                    border-radius: 5px;
+                QLabel {
+                    border: 3px dashed #007ACC;
+                    border-radius: 8px;
                     background-color: #e6f3ff;
+                    color: #007ACC;
+                    padding: 10px;
+                    margin: 5px;
+                    font-weight: bold;
                 }
             """)
 
     def dragLeaveEvent(self, event):
-        # 원래 스타일로 복원
-        self.setStyleSheet("""
-            DropArea {
-                border: 2px dashed #aaa;
-                border-radius: 5px;
-                background-color: #f8f8f8;
-            }
-            DropArea:hover {
-                border-color: #007ACC;
-            }
-        """)
+        # 원래 스타일로 복원 (파일이 있는지 확인)
+        if hasattr(self.parent_drop_area.parent_window, 'selected_files'):
+            if self.parent_drop_area.parent_window.selected_files[self.zone_id] is not None:
+                # 파일이 있는 경우 - 초록색 스타일 유지
+                self.setStyleSheet("""
+                    QLabel {
+                        border: 2px solid #4CAF50;
+                        border-radius: 8px;
+                        background-color: #e8f5e8;
+                        color: #2e7d32;
+                        padding: 10px;
+                        margin: 5px;
+                        font-weight: bold;
+                    }
+                """)
+            else:
+                # 파일이 없는 경우 - 기본 스타일
+                self.setStyleSheet("""
+                    QLabel {
+                        border: 2px dashed #aaa;
+                        border-radius: 8px;
+                        background-color: #f8f8f8;
+                        color: #555;
+                        padding: 10px;
+                        margin: 5px;
+                    }
+                """)
 
-    def dropEvent(self, event: QDropEvent):
+    def dropEvent(self, event):
         # 부모 창의 가공 상태 확인
-        if hasattr(self.parent_window, 'processed_file') and self.parent_window.processed_file:
-            # 이미 가공이 완료된 상태면 드롭 무시
-            QMessageBox.warning(self.parent_window, "경고", "이미 이미지 가공이 완료되었습니다.\n새 이미지를 추가하려면 먼저 '사진 초기화' 버튼을 누르세요.")
+        if hasattr(self.parent_drop_area.parent_window,
+                   'processed_file') and self.parent_drop_area.parent_window.processed_file:
+            QMessageBox.warning(self.parent_drop_area.parent_window, "경고",
+                                "이미 이미지 가공이 완료되었습니다.\n새 이미지를 추가하려면 먼저 '사진 초기화' 버튼을 누르세요.")
             event.ignore()
             return
 
-        # URL을 가진 드롭 이벤트 처리
         if event.mimeData().hasUrls():
             for url in event.mimeData().urls():
                 file_path = url.toLocalFile()
                 if file_path.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp')):
-                    self.label.setText(f"선택된 파일: {os.path.basename(file_path)}")
-                    # 부모 창의 메서드 호출하여 이미지 준비 (즉시 처리하지 않음)
-                    if hasattr(self.parent_window, 'prepare_image'):
-                        self.parent_window.prepare_image(file_path)
+                    # 파일 선택 완료 스타일
+                    self.setText(f"사진 {self.zone_id + 1}\n{os.path.basename(file_path)}")
+                    self.setStyleSheet("""
+                        QLabel {
+                            border: 2px solid #4CAF50;
+                            border-radius: 8px;
+                            background-color: #e8f5e8;
+                            color: #2e7d32;
+                            padding: 10px;
+                            margin: 5px;
+                            font-weight: bold;
+                        }
+                    """)
+
+                    # 부모 창의 메서드 호출
+                    if hasattr(self.parent_drop_area.parent_window, 'prepare_image'):
+                        self.parent_drop_area.parent_window.prepare_image(file_path, self.zone_id)
                     break
 
-            # 스타일 원래대로 복원
-            self.setStyleSheet("""
-                DropArea {
+            event.acceptProposedAction()
+
+
+class DropArea(QFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # 전체 프레임 스타일을 단순화
+        self.setFrameStyle(QFrame.NoFrame)
+        self.setLineWidth(0)
+        self.setMinimumSize(600, 320)
+        self.setAcceptDrops(False)  # 개별 존에서만 드롭 처리
+
+        # 전체 배경 스타일
+        self.setStyleSheet("""
+            DropArea {
+                background-color: #fafafa;
+                border-radius: 10px;
+            }
+        """)
+
+        # 4분할 레이아웃 생성
+        main_layout = QVBoxLayout(self)
+        main_layout.setSpacing(2)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+
+        # 제목 라벨
+        title_label = QLabel("이미지 드롭 영역 (4개)")
+        title_label.setAlignment(Qt.AlignCenter)
+        title_label.setFont(QFont("Arial", 14, QFont.Bold))
+        title_label.setStyleSheet("color: #333; margin-bottom: 10px;")
+        main_layout.addWidget(title_label)
+
+        # 상단 행
+        top_layout = QHBoxLayout()
+        top_layout.setSpacing(5)
+
+        self.zone1 = DropZone(0, self)
+        self.zone2 = DropZone(1, self)
+
+        top_layout.addWidget(self.zone1)
+        top_layout.addWidget(self.zone2)
+
+        # 하단 행
+        bottom_layout = QHBoxLayout()
+        bottom_layout.setSpacing(5)
+
+        self.zone3 = DropZone(2, self)
+        self.zone4 = DropZone(3, self)
+
+        bottom_layout.addWidget(self.zone3)
+        bottom_layout.addWidget(self.zone4)
+
+        main_layout.addLayout(top_layout)
+        main_layout.addLayout(bottom_layout)
+
+        # 파일 선택 버튼 (최소한으로 설계)
+        self.select_btn = QPushButton("또는 파일 선택")
+        self.select_btn.setFont(QFont("Arial", 11))  # 폰트 크기 약간 키움
+        self.select_btn.setFixedSize(140, 32)  # 크기 약간 키움
+        self.select_btn.setStyleSheet("""
+                    QPushButton {
+                        background-color: transparent;
+                        color: #888;
+                        border: 1px solid #ccc;
+                        padding: 3px 8px;
+                        border-radius: 3px;
+                        font-size: 10px;
+                        margin-top: 8px;
+                    }
+                    QPushButton:hover {
+                        color: #555;
+                        border-color: #aaa;
+                    }
+                    QPushButton:pressed {
+                        background-color: #f0f0f0;
+                    }
+                """)
+        main_layout.addWidget(self.select_btn, 0, Qt.AlignCenter)  # 중앙 정렬
+
+        self.parent_window = parent
+        self.labels = [self.zone1, self.zone2, self.zone3, self.zone4]  # 호환성 유지
+
+    def reset_zones(self):
+        """모든 드롭 존을 초기 상태로 리셋"""
+        for i, zone in enumerate([self.zone1, self.zone2, self.zone3, self.zone4]):
+            zone.setText(f"사진 {i + 1}\n드롭하세요")
+            zone.setStyleSheet("""
+                QLabel {
                     border: 2px dashed #aaa;
-                    border-radius: 5px;
+                    border-radius: 8px;
                     background-color: #f8f8f8;
-                }
-                DropArea:hover {
-                    border-color: #007ACC;
+                    color: #555;
+                    padding: 10px;
+                    margin: 5px;
                 }
             """)
 
-            event.acceptProposedAction()
+    # 기존 메서드들 (호환성 유지)
+    def dragEnterEvent(self, event):
+        pass  # 개별 존에서 처리
+
+    def dragLeaveEvent(self, event):
+        pass  # 개별 존에서 처리
+
+    def dropEvent(self, event):
+        pass  # 개별 존에서 처리
 
 
 class Window(QMainWindow):
@@ -286,10 +403,133 @@ class Window(QMainWindow):
         # 창에 컨테이너 위젯을 설정
         self.setCentralWidget(container)
 
-        # 선택된 파일 경로 초기화
-        self.selected_file = None
+        # 선택된 파일들 초기화 (4개 파일을 저장할 리스트)
+        self.selected_files = [None, None, None, None]  # 4개 위치별 파일
         self.processed_file = None
         self.created_folder = None
+
+        # 프레임 선택을 위한 레이아웃 추가
+        frame_layout = QHBoxLayout()
+        frame_label = QLabel("프레임 선택:")
+        frame_label.setFont(QFont("Arial", 14))
+        frame_layout.addWidget(frame_label)
+
+        self.frame_combo = QComboBox()
+        self.frame_combo.setFont(QFont("Arial", 14))
+        self.frame_combo.addItem("프레임 1", "01.png")  # 첫 번째 프레임
+        self.frame_combo.addItem("프레임 2", "02.png")  # 두 번째 프레임
+        self.frame_combo.addItem("프레임 3", "03.png")  # 세 번째 프레임
+        self.frame_combo.addItem("프레임 없음", "none")  # 프레임 없음 옵션
+        # 나중에 다른 프레임 추가 가능
+        frame_layout.addWidget(self.frame_combo)
+
+        # 프레임 미리보기 버튼
+        self.preview_frame_btn = QPushButton("프레임 미리보기")
+        self.preview_frame_btn.setFont(QFont("Arial", 12))
+        self.preview_frame_btn.clicked.connect(self.show_frame_preview)  # 메소드 이름 변경
+        frame_layout.addWidget(self.preview_frame_btn)
+
+        # 레이아웃에 추가
+        main_layout.addLayout(frame_layout)
+
+        # 선택된 프레임 변수 초기화
+        self.selected_frame = "01.png"
+
+        # 프레임 콤보박스 이벤트 연결
+        self.frame_combo.currentIndexChanged.connect(self.on_frame_changed)
+
+    # 메소드 이름 변경
+    def show_frame_preview(self):
+        """선택된 프레임 미리보기"""
+        if self.selected_frame == "none":
+            QMessageBox.information(self, "프레임 미리보기", "선택된 프레임이 없습니다.")
+            return
+
+        frame_path = os.path.join(os.getcwd(), 'frame', self.selected_frame)
+        if not os.path.exists(frame_path):
+            QMessageBox.warning(self, "오류", f"프레임 파일을 찾을 수 없습니다: {frame_path}")
+            return
+
+        # 프레임 이미지 표시
+        pixmap = QPixmap(frame_path)
+        if not pixmap.isNull():
+            preview_width = 300
+            preview_height = 300
+            pixmap = pixmap.scaled(preview_width, preview_height,
+                                   Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            # 간단한 미리보기 창 생성
+            preview_dialog = QDialog(self)
+            preview_dialog.setWindowTitle("프레임 미리보기")
+            preview_layout = QVBoxLayout()
+
+            frame_preview = QLabel()
+            frame_preview.setPixmap(pixmap)
+            frame_preview.setAlignment(Qt.AlignCenter)
+
+            close_btn = QPushButton("닫기")
+            close_btn.clicked.connect(preview_dialog.close)
+
+            preview_layout.addWidget(frame_preview)
+            preview_layout.addWidget(close_btn)
+
+            preview_dialog.setLayout(preview_layout)
+            preview_dialog.exec_()
+
+    def on_frame_changed(self, index):
+        """프레임 선택이 변경되었을 때 호출"""
+        self.selected_frame = self.frame_combo.currentData()
+        print(f"선택된 프레임: {self.selected_frame}")
+
+        # 이미 이미지들이 선택되어 있다면 가공하기 버튼 활성화
+        if any(file is not None for file in self.selected_files):
+            # 4개 모두 선택되었을 때만 활성화
+            if all(file is not None for file in self.selected_files):
+                self.process_button.setEnabled(True)
+                self.status_message.setText("새로운 프레임이 선택되었습니다. 가공하기 버튼을 눌러 이미지를 재가공하세요.")
+                self.status_message.setStyleSheet("color: #007ACC; margin: 10px 0px;")
+            else:
+                filled_count = sum(1 for file in self.selected_files if file is not None)
+                self.status_message.setText(f"새로운 프레임이 선택되었습니다. {filled_count}/4개 이미지가 준비되었습니다.")
+                self.status_message.setStyleSheet("color: #007ACC; margin: 10px 0px;")
+                self.process_button.setEnabled(False)
+
+    def preview_frame(self):
+        """선택된 프레임 미리보기"""
+        if self.selected_frame == "none":
+            QMessageBox.information(self, "프레임 미리보기", "선택된 프레임이 없습니다.")
+            return
+
+        frame_path = os.path.join(os.getcwd(), 'frame', self.selected_frame)
+        if not os.path.exists(frame_path):
+            QMessageBox.warning(self, "오류", f"프레임 파일을 찾을 수 없습니다: {frame_path}")
+            return
+
+        # 프레임 이미지 표시
+        pixmap = QPixmap(frame_path)
+        if not pixmap.isNull():
+            preview_width = 300
+            preview_height = 300
+            pixmap = pixmap.scaled(preview_width, preview_height,
+                                   Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            # 간단한 미리보기 창 생성
+            preview_dialog = QDialog(self)
+            preview_dialog.setWindowTitle("프레임 미리보기")
+            preview_layout = QVBoxLayout()
+
+            frame_preview = QLabel()
+            frame_preview.setPixmap(pixmap)
+            frame_preview.setAlignment(Qt.AlignCenter)
+
+            close_btn = QPushButton("닫기")
+            close_btn.clicked.connect(preview_dialog.close)
+
+            preview_layout.addWidget(frame_preview)
+            preview_layout.addWidget(close_btn)
+
+            preview_dialog.setLayout(preview_layout)
+            preview_dialog.exec_()
 
     def on_resize(self, event):
         """창 크기가 변경될 때 종료 버튼 위치 조정"""
@@ -300,13 +540,13 @@ class Window(QMainWindow):
 
     def reset_image(self):
         """사진 초기화 버튼을 눌렀을 때 실행되는 메서드"""
-        if not self.selected_file:
+        if not any(file is not None for file in self.selected_files):
             # 이미 초기 상태이면 아무 작업 하지 않음
             return
 
         # 확인 메시지
         reply = QMessageBox.question(self, '사진 초기화 확인',
-                                     "현재 선택된 사진을 초기화하시겠습니까?",
+                                     "현재 선택된 사진들을 초기화하시겠습니까?",
                                      QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
         if reply == QMessageBox.No:
@@ -318,7 +558,7 @@ class Window(QMainWindow):
                 files = os.listdir(self.created_folder)
                 for file in files:
                     # 이전 원본 복사본과 가공된 이미지 삭제
-                    if file.startswith("copy_") or file.startswith("processed_"):
+                    if file.startswith("copy") or file.startswith("processed_"):
                         file_path = os.path.join(self.created_folder, file)
                         os.remove(file_path)
                         print(f"파일 삭제됨: {file_path}")
@@ -326,29 +566,29 @@ class Window(QMainWindow):
                 print(f"파일 삭제 오류: {e}")
                 # 삭제 실패해도 계속 진행
 
-        # 선택된 파일과 가공된 파일 정보 초기화
-        self.selected_file = None
+        # 선택된 파일들과 가공된 파일 정보 초기화
+        self.selected_files = [None, None, None, None]
         self.processed_file = None
 
-        # UI 초기화 (폴더 번호 관련 부분은 그대로 유지)
-        self.drop_area.label.setText("여기에 사진을 드롭하세요")
-        self.drop_area.label.setStyleSheet("color: #555;")
+        # 새로운 드롭 영역 초기화
+        self.drop_area.reset_zones()
 
+        # 미리보기 초기화
         self.preview_label.setText("이미지 미리보기")
         self.preview_label.setPixmap(QPixmap())
 
         self.processed_label.setText("가공 후 미리보기")
         self.processed_label.setPixmap(QPixmap())
 
-        # 상태 메시지 초기화 (추가)
+        # 상태 메시지 초기화
         self.status_message.setText("")
 
         # 버튼 상태 초기화
         self.process_button.setEnabled(False)
         self.print_button.setEnabled(False)
 
-        print("사진이 초기화되었습니다.")
-        QMessageBox.information(self, "알림", "사진이 초기화되었습니다.")
+        print("사진들이 초기화되었습니다.")
+        QMessageBox.information(self, "알림", "사진들이 초기화되었습니다.")
 
     def keyPressEvent(self, event):
         """키 이벤트 처리"""
@@ -574,66 +814,123 @@ class Window(QMainWindow):
             QMessageBox.warning(self, "경고", "유효한 폴더 번호를 먼저 입력해주세요.")
             return
 
-        # 파일 다이얼로그 열기
-        file, _ = QFileDialog.getOpenFileName(self, "Select Image", "", "Image Files (*.png *.jpg *.jpeg *.bmp)")
-        if file:
-            self.prepare_image(file)
+        # 여러 파일 선택 다이얼로그 열기
+        files, _ = QFileDialog.getOpenFileNames(self, "Select Images (최대 4개)", "",
+                                                "Image Files (*.png *.jpg *.jpeg *.bmp)")
 
-    def prepare_image(self, file_path):
-        """이미지를 준비하고 미리보기 표시 (즉시 처리하지 않음)"""
+        if files:
+            # 최대 4개까지만 처리
+            files = files[:4]
+
+            # 각 파일을 순서대로 슬롯에 배치
+            for i, file_path in enumerate(files):
+                self.prepare_image(file_path, i)
+                # 새로운 드롭 영역 업데이트
+                zone = [self.drop_area.zone1, self.drop_area.zone2, self.drop_area.zone3, self.drop_area.zone4][i]
+                zone.setText(f"사진 {i + 1}\n{os.path.basename(file_path)}")
+                zone.setStyleSheet("""
+                    QLabel {
+                        border: 2px solid #4CAF50;
+                        border-radius: 8px;
+                        background-color: #e8f5e8;
+                        color: #2e7d32;
+                        padding: 10px;
+                        margin: 5px;
+                        font-weight: bold;
+                    }
+                """)
+
+    def prepare_image(self, file_path, slot_index):
+        """이미지를 준비하고 미리보기 표시 (4개 슬롯 중 하나에 배치)"""
         # 이미 가공이 완료된 상태인지 확인
         if self.processed_file:
             QMessageBox.warning(self, "경고", "이미 이미지 가공이 완료되었습니다.\n새 이미지를 추가하려면 먼저 '사진 초기화' 버튼을 누르세요.")
             return
 
-        self.selected_file = file_path
-        print(f"선택된 파일: {file_path}")
-        self.drop_area.label.setText(f"선택된 파일: {os.path.basename(file_path)}")
+        # 해당 슬롯에 파일 저장
+        self.selected_files[slot_index] = file_path
+        print(f"슬롯 {slot_index + 1}에 선택된 파일: {file_path}")
 
         # 폴더 번호 확인
         folder_number_text = self.folder_input.text().strip()
         if not folder_number_text or not folder_number_text.isdigit():
             # 유효한 폴더 번호가 없을 경우 알림
             print("유효한 폴더 번호를 먼저 입력해주세요.")
-            self.drop_area.label.setText("폴더 번호를 먼저 입력해주세요!")
-            self.drop_area.label.setStyleSheet("color: red;")
             QMessageBox.warning(self, "경고", "유효한 폴더 번호를 먼저 입력해주세요.")
             return
 
-        # 미리보기 이미지 표시
-        pixmap = QPixmap(file_path)
-        if not pixmap.isNull():
-            # 미리보기 크기에 맞게 이미지 크기 조정
-            preview_width = self.preview_frame.width() - 20  # 여백 고려
-            preview_height = self.preview_frame.height() - 20  # 여백 고려
-            pixmap = pixmap.scaled(preview_width, preview_height,
-                                   Qt.KeepAspectRatio, Qt.SmoothTransformation)
+        # 미리보기 업데이트
+        self.update_preview()
 
-            self.preview_label.setPixmap(pixmap)
-            self.preview_label.setAlignment(Qt.AlignCenter)
-            self.process_button.setEnabled(True)  # 가공하기 버튼 활성화
-
-            # 성공 메시지 표시 (추가)
-            self.status_message.setText("원본 이미지를 성공적으로 불러왔습니다.")
+        # 모든 슬롯이 채워졌는지 확인하여 가공하기 버튼 활성화
+        if all(file is not None for file in self.selected_files):
+            self.process_button.setEnabled(True)
+            self.status_message.setText("4개 이미지가 모두 준비되었습니다. 가공하기 버튼을 누르세요.")
             self.status_message.setStyleSheet("color: #007700; margin: 10px 0px;")
-
-            # 가공된 이미지 미리보기 초기화
-            self.processed_label.setText("가공 후 미리보기")
-            self.processed_label.setAlignment(Qt.AlignCenter)
-            self.print_button.setEnabled(False)  # 인쇄 버튼 비활성화
         else:
-            self.preview_label.setText("이미지를 불러올 수 없습니다")
-            self.preview_label.setAlignment(Qt.AlignCenter)
+            filled_count = sum(1 for file in self.selected_files if file is not None)
+            self.status_message.setText(f"{filled_count}/4개 이미지가 준비되었습니다.")
+            self.status_message.setStyleSheet("color: #007ACC; margin: 10px 0px;")
             self.process_button.setEnabled(False)
-            # 오류 메시지 표시
-            self.status_message.setText("이미지를 불러오는데 실패했습니다.")
-            self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
+
+    def update_preview(self):
+        """4분할 미리보기 업데이트"""
+        # 미리보기 프레임 크기
+        preview_width = self.preview_frame.width() - 20
+        preview_height = self.preview_frame.height() - 40  # 제목 공간 고려
+
+        # 각 셀 크기 (2x2 그리드)
+        cell_width = preview_width // 2
+        cell_height = preview_height // 2
+
+        # 새로운 4분할 이미지 생성
+        preview_image = QPixmap(preview_width, preview_height)
+        preview_image.fill(Qt.lightGray)
+
+        painter = QPainter(preview_image)
+
+        positions = [
+            (0, 0),  # 좌상
+            (cell_width, 0),  # 우상
+            (0, cell_height),  # 좌하
+            (cell_width, cell_height)  # 우하
+        ]
+
+        for i, file_path in enumerate(self.selected_files):
+            x, y = positions[i]
+
+            if file_path and os.path.exists(file_path):
+                pixmap = QPixmap(file_path)
+                if not pixmap.isNull():
+                    # 각 셀에 맞게 크기 조정
+                    scaled_pixmap = pixmap.scaled(cell_width - 2, cell_height - 2,
+                                                  Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    # 중앙 정렬을 위한 오프셋 계산
+                    offset_x = (cell_width - scaled_pixmap.width()) // 2
+                    offset_y = (cell_height - scaled_pixmap.height()) // 2
+                    painter.drawPixmap(x + offset_x, y + offset_y, scaled_pixmap)
+            else:
+                # 빈 슬롯 표시
+                painter.setPen(Qt.darkGray)
+                painter.drawRect(x + 1, y + 1, cell_width - 2, cell_height - 2)
+                painter.drawText(x + 10, y + cell_height // 2, f"이미지 {i + 1}")
+
+        # 격자 그리기
+        painter.setPen(Qt.black)
+        painter.drawLine(cell_width, 0, cell_width, preview_height)  # 세로선
+        painter.drawLine(0, cell_height, preview_width, cell_height)  # 가로선
+
+        painter.end()
+
+        self.preview_label.setPixmap(preview_image)
+        self.preview_label.setAlignment(Qt.AlignCenter)
 
     # process_selected_image 메서드에서 수정할 부분
     def process_selected_image(self):
         """가공하기 버튼을 눌렀을 때 실행되는 메서드"""
-        if not self.selected_file:
-            QMessageBox.warning(self, "경고", "먼저 이미지를 선택해주세요.")
+        # 4개 파일이 모두 선택되었는지 확인
+        if not all(file is not None for file in self.selected_files):
+            QMessageBox.warning(self, "경고", "4개 이미지를 모두 선택해주세요.")
             return
 
         folder_number_text = self.folder_input.text().strip()
@@ -654,19 +951,19 @@ class Window(QMainWindow):
             else:
                 # 취소 시 처리 중단
                 return
+
         # 폴더가 없으면 생성
         if not self.created_folder or not os.path.exists(self.created_folder):
             actual_folder_name = self.get_actual_folder_name(folder_number_text)
             self.create_folder(actual_folder_name)
-            # 추가 시작 - 다른 레이블 초기화하고 생성된 폴더 메시지만 표시
             folder_name = os.path.basename(self.created_folder)
             self.folder_exists_label.setText(f"'{folder_name}' 폴더가 생성되었습니다.")
             self.folder_exists_label.setStyleSheet("color: green;")
             self.new_folder_label.setText("")
             self.last_folder_time_label.setText("")
-            # 추가 끝
 
-        processed_path = self.process_and_save(self.selected_file, self.created_folder)
+        # 4개 파일 처리
+        processed_path = self.process_and_save(self.selected_files, self.created_folder)
 
         # 가공된 이미지 미리보기 표시
         if processed_path and os.path.exists(processed_path):
@@ -683,25 +980,19 @@ class Window(QMainWindow):
                 self.processed_label.setAlignment(Qt.AlignCenter)
                 self.print_button.setEnabled(True)  # 인쇄 버튼 활성화
 
-                # 가공 완료 메시지 설정 (추가)
+                # 가공 완료 메시지 설정
                 folder_name = os.path.basename(self.created_folder)
-                self.status_message.setText(f"가공이 성공적으로 완료되었습니다.\n'{folder_name}' 폴더에 저장되었습니다.")
+                frame_name = self.frame_combo.currentText()  # 현재 선택된 프레임 이름 표시
+                self.status_message.setText(f"{frame_name}로 가공이 성공적으로 완료되었습니다.\n'{folder_name}' 폴더에 저장되었습니다.")
                 self.status_message.setStyleSheet("color: #007700; margin: 10px 0px;")
             else:
                 self.processed_label.setText("가공된 이미지를 표시할 수 없습니다")
-                # 실패 메시지 설정
                 self.status_message.setText("가공된 이미지를 표시할 수 없습니다.")
                 self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
         else:
             self.processed_label.setText("가공된 이미지를 표시할 수 없습니다")
-            # 실패 메시지 설정
             self.status_message.setText("이미지 가공에 실패했습니다.")
             self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
-
-        # 대신 파일 이름을 계속 표시하면서 녹색으로 강조
-        file_name = os.path.basename(self.selected_file)
-        self.drop_area.label.setText(f"선택된 파일: {file_name}")
-        self.drop_area.label.setStyleSheet("color: green;")
 
         # 가공 후 버튼 상태 조정
         self.process_button.setEnabled(False)  # 가공 후 버튼 비활성화
@@ -751,7 +1042,7 @@ class Window(QMainWindow):
         # 가공된 이미지 경로 반환
         return processed_path
 
-    def process_and_save(self, file, folder_path):
+    def process_and_save(self, files, folder_path):
         processed_image_path = None
 
         # 이전 파일이 있으면 삭제
@@ -759,39 +1050,109 @@ class Window(QMainWindow):
             old_files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
             for old_file in old_files:
                 # 이전 원본 복사본과 가공된 이미지 삭제
-                if old_file.startswith("copy_") or old_file.startswith("processed_"):
+                if old_file.startswith("copy") or old_file.startswith("processed_"):
                     old_file_path = os.path.join(folder_path, old_file)
                     os.remove(old_file_path)
-                    print(f"이전 파일 삭제됨: {old_file_path}")
+                    print(f"파일 삭제됨: {old_file_path}")
         except Exception as e:
-            print(f"이전 파일 삭제 오류: {e}")
+            print(f"파일 삭제 오류: {e}")
             # 삭제 실패해도 계속 진행
 
-        # 이미지 가공 (이 함수 안에서 가공 방법을 선택할 수 있음)
+        # 이미지 가공
         try:
-            processed_image_path = self.process_image(file, folder_path)
-            print(f"가공된 이미지 저장됨: {processed_image_path}")
+            processed_image_path = self.process_image(files, folder_path)
+            if processed_image_path:
+                print(f"가공된 이미지 저장됨: {processed_image_path}")
         except Exception as e:
             print(f"이미지 가공 오류: {e}")
             QMessageBox.critical(self, "오류", f"이미지 가공 중 오류가 발생했습니다: {str(e)}")
 
-        # 현재 파일 복사본 저장
+        # 현재 파일들을 copy1_, copy2_, copy3_, copy4_ 형식으로 저장
         try:
-            file_copy_path = os.path.join(folder_path, "copy_" + os.path.basename(file))
-            shutil.copy(file, file_copy_path)
-            print(f"파일 복사본 저장됨: {file_copy_path}")
+            for i, file_path in enumerate(files):
+                if file_path and os.path.exists(file_path):
+                    base_name = os.path.basename(file_path)
+                    copy_filename = f"copy{i + 1}_{base_name}"
+                    file_copy_path = os.path.join(folder_path, copy_filename)
+                    shutil.copy(file_path, file_copy_path)
+                    print(f"파일 복사본 저장됨: {file_copy_path}")
         except Exception as e:
             print(f"파일 복사 오류: {e}")
             QMessageBox.critical(self, "오류", f"파일 복사 중 오류가 발생했습니다: {str(e)}")
 
         return processed_image_path
 
-    def process_image(self, file, folder_path):
-        # 이곳에 원하는 이미지 가공 코드를 추가하세요
-        image = Image.open(file)
-        processed_image = image.convert("L")  # 예시: 흑백 변환
-        processed_image_path = os.path.join(folder_path, "processed_" + os.path.basename(file))
-        processed_image.save(processed_image_path)
+    def process_image(self, files, folder_path):
+        # 가공 파일명 생성 (첫 번째 파일명 기준)
+        base_name = os.path.basename(files[0]) if files[0] else "image.jpg"
+        processed_image_path = os.path.join(folder_path, "processed_" + base_name)
+
+        # 프레임 없음 옵션 처리
+        if self.selected_frame == "none":
+            # 단순 복사 또는 품질 향상 처리 (첫 번째 이미지만)
+            if files[0]:
+                image = Image.open(files[0])
+                image.save(processed_image_path, quality=100)
+            return processed_image_path
+
+        # processing.py의 함수 사용하여 프레임에 4개 이미지 삽입
+        try:
+            from processing import insert_images_into_frame
+            frame_path = os.path.join(os.getcwd(), 'frame', self.selected_frame)
+
+            # 프레임 폴더가 없으면 생성
+            os.makedirs(os.path.dirname(frame_path), exist_ok=True)
+
+            # 프레임 이미지가 없으면 단순 복사로 폴백
+            if not os.path.exists(frame_path):
+                QMessageBox.warning(self, "경고", "프레임 이미지를 찾을 수 없어 원본을 그대로 사용합니다.")
+                if files[0]:
+                    shutil.copy(files[0], processed_image_path)
+            else:
+                # 4개 이미지를 위한 photo_regions 생성
+                photo_regions = []
+
+                # 프레임에 따라 다른 파라미터 설정
+                if self.selected_frame == "03.png":  # 프레임 3
+                    # 4개 영역 좌표 설정 (예시 - 실제 프레임에 맞게 조정 필요)
+                    regions = [
+                        (0, 0, 500, 525),  # 좌상
+                        (500, 0, 1000, 525),  # 우상
+                        (0, 525, 500, 1050),  # 좌하
+                        (500, 525, 1000, 1050)  # 우하
+                    ]
+                else:  # 프레임 1과 2
+                    # 기본 4개 영역 좌표 설정
+                    regions = [
+                        (30, 30, 500, 525),  # 좌상
+                        (500, 30, 970, 525),  # 우상
+                        (30, 525, 500, 1020),  # 좌하
+                        (500, 525, 970, 1020)  # 우하
+                    ]
+
+                # 실제 파일이 있는 경우만 photo_regions에 추가
+                for i, file_path in enumerate(files):
+                    if file_path and os.path.exists(file_path):
+                        photo_regions.append((file_path, regions[i]))
+
+                # 최소 1개 이미지가 있는 경우에만 처리
+                if photo_regions:
+                    insert_images_into_frame(photo_regions, frame_path, processed_image_path)
+                    self.status_message.setText(f"이미지가 '{self.selected_frame}' 프레임으로 가공되었습니다.")
+                else:
+                    QMessageBox.warning(self, "경고", "처리할 이미지가 없습니다.")
+                    return None
+
+        except Exception as e:
+            error_msg = f"이미지 가공 중 오류가 발생했습니다: {str(e)}"
+            print(error_msg)
+            QMessageBox.critical(self, "오류", error_msg)
+            # 오류 발생 시 첫 번째 원본 복사
+            if files[0]:
+                shutil.copy(files[0], processed_image_path)
+            self.status_message.setText("오류로 인해 원본 이미지가 그대로 사용되었습니다.")
+            self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
+
         return processed_image_path
 
     def print_image(self):
@@ -846,7 +1207,7 @@ class Window(QMainWindow):
         # UI 초기화
         self.folder_input.clear()
 
-        # 폴더 입력 필드 다시 활성화 - 이 부분 추가
+        # 폴더 입력 필드 다시 활성화
         self.folder_input.setEnabled(True)
         self.folder_input.setStyleSheet("")  # 원래 스타일로 복원
 
@@ -854,16 +1215,17 @@ class Window(QMainWindow):
         self.new_folder_label.setText("")
         self.last_folder_time_label.setText("")
 
-        self.drop_area.label.setText("여기에 사진을 드롭하세요")
-        self.drop_area.label.setStyleSheet("color: #555;")
+        # 새로운 드롭 영역 초기화
+        self.drop_area.reset_zones()
 
+        # 미리보기 초기화
         self.preview_label.setText("이미지 미리보기")
         self.preview_label.setPixmap(QPixmap())
 
         self.processed_label.setText("가공 후 미리보기")
         self.processed_label.setPixmap(QPixmap())
 
-        # 상태 메시지 초기화 (추가)
+        # 상태 메시지 초기화
         self.status_message.setText("")
 
         # 버튼 상태 초기화
@@ -871,11 +1233,15 @@ class Window(QMainWindow):
         self.print_button.setEnabled(False)
 
         # 내부 변수 초기화
-        self.selected_file = None
+        self.selected_files = [None, None, None, None]
         self.processed_file = None
         self.created_folder = None
         self.previous_folder_number = None
         self.is_first_check = True  # 첫 번째 체크 상태도 재설정
+
+        # 프레임 선택 초기화
+        self.frame_combo.setCurrentIndex(0)  # 기본 프레임으로 복원
+        self.selected_frame = "01.png"
 
         print("애플리케이션이 초기화되었습니다.")
         QMessageBox.information(self, "알림", "모든 작업이 초기화되었습니다.")
@@ -895,7 +1261,6 @@ def main():
     window = Window()  # GUI 초기화
     window.show()  # 창 표시
     sys.exit(app.exec_())  # 이벤트 루프 시작
-
 
 if __name__ == "__main__":
     main()
