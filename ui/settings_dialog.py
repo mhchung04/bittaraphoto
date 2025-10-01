@@ -6,35 +6,25 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QListWidget,
                              QTabWidget, QListWidgetItem, QSplitter)
 from PyQt5.QtCore import Qt, QSize, QRect, pyqtSignal
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
 from PIL import Image
+from .styles import Styles, Colors, Fonts
 
 class RegionInputWidget(QGroupBox):
     """개별 영역 좌표 입력 위젯 (박스 형태) - Compact"""
     def __init__(self, index, region=None, parent_dialog=None):
         super().__init__(f"영역 {index + 1}")
         self.parent_dialog = parent_dialog
-        self.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                border: 1px solid #cccccc;
-                border-radius: 5px;
-                margin-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 3px 0 3px;
-            }
-        """)
+        self.setStyleSheet(Styles.GROUP_BOX)
         
         layout = QGridLayout()
         layout.setContentsMargins(5, 15, 5, 5)
         layout.setSpacing(5)
         
-        self.x1 = QSpinBox(); self.x1.setRange(0, 10000); self.x1.setPrefix("X1: ")
-        self.y1 = QSpinBox(); self.y1.setRange(0, 10000); self.y1.setPrefix("Y1: ")
-        self.x2 = QSpinBox(); self.x2.setRange(0, 10000); self.x2.setPrefix("X2: ")
-        self.y2 = QSpinBox(); self.y2.setRange(0, 10000); self.y2.setPrefix("Y2: ")
+        self.x1 = QSpinBox(); self.x1.setRange(0, 10000); self.x1.setPrefix("X1: "); self.x1.setStyleSheet(Styles.INPUT)
+        self.y1 = QSpinBox(); self.y1.setRange(0, 10000); self.y1.setPrefix("Y1: "); self.y1.setStyleSheet(Styles.INPUT)
+        self.x2 = QSpinBox(); self.x2.setRange(0, 10000); self.x2.setPrefix("X2: "); self.x2.setStyleSheet(Styles.INPUT)
+        self.y2 = QSpinBox(); self.y2.setRange(0, 10000); self.y2.setPrefix("Y2: "); self.y2.setStyleSheet(Styles.INPUT)
 
         for spin in [self.x1, self.y1, self.x2, self.y2]:
             spin.valueChanged.connect(self.on_value_changed)
@@ -206,6 +196,7 @@ class SettingsDialog(QDialog):
         
         # 탭 위젯
         self.tabs = QTabWidget()
+        self.tabs.setStyleSheet(Styles.TAB_WIDGET)
         self.tabs.addTab(self.create_general_tab(), "일반")
         self.tabs.addTab(self.create_frame_tab(), "프레임 설정")
         
@@ -213,6 +204,7 @@ class SettingsDialog(QDialog):
         
         # 하단 닫기 버튼
         close_btn = QPushButton("닫기")
+        close_btn.setStyleSheet(Styles.BTN_SECONDARY)
         close_btn.clicked.connect(self.accept)
         close_btn.setFixedWidth(100)
         
@@ -247,10 +239,12 @@ class SettingsDialog(QDialog):
         
         self.save_btn = QPushButton("💾 저장")
         self.save_btn.setToolTip("변경사항을 파일에 저장합니다")
+        self.save_btn.setStyleSheet(Styles.BTN_PRIMARY)
         self.save_btn.clicked.connect(self.save_changes)
         
         self.cancel_btn = QPushButton("↩ 취소")
         self.cancel_btn.setToolTip("변경사항을 취소하고 다시 불러옵니다")
+        self.cancel_btn.setStyleSheet(Styles.BTN_SECONDARY)
         self.cancel_btn.clicked.connect(self.cancel_changes)
         
         toolbar_layout.addWidget(self.save_btn)
@@ -267,21 +261,29 @@ class SettingsDialog(QDialog):
         
         # 1. 기본 정보 그룹
         info_group = QGroupBox("기본 정보")
+        info_group.setStyleSheet(Styles.GROUP_BOX)
         info_layout = QFormLayout()
         
         self.name_edit = QLineEdit()
+        self.name_edit.setStyleSheet(Styles.INPUT)
         self.name_edit.textChanged.connect(self.save_current_frame_info)
         
         file_layout = QHBoxLayout()
         self.filename_edit = QLineEdit()
+        self.filename_edit.setReadOnly(True)
+        self.filename_edit.setStyleSheet(Styles.INPUT)
         self.filename_edit.textChanged.connect(self.on_filename_changed)
+        
         self.browse_btn = QPushButton("찾기...")
+        self.browse_btn.setStyleSheet(Styles.BTN_SECONDARY)
         self.browse_btn.clicked.connect(self.browse_file)
+        
         file_layout.addWidget(self.filename_edit)
         file_layout.addWidget(self.browse_btn)
         
         self.type_combo = QComboBox()
         self.type_combo.addItems(["four_cut", "single_cut"])
+        self.type_combo.setStyleSheet(Styles.INPUT)
         self.type_combo.currentTextChanged.connect(self.on_type_changed)
         
         info_layout.addRow("이름:", self.name_edit)
@@ -292,6 +294,7 @@ class SettingsDialog(QDialog):
         
         # 2. 미리보기 그룹
         preview_group = QGroupBox("미리보기")
+        preview_group.setStyleSheet(Styles.GROUP_BOX)
         preview_layout = QVBoxLayout()
         
         self.preview_widget = FramePreviewWidget()
@@ -309,6 +312,7 @@ class SettingsDialog(QDialog):
         right_layout.setContentsMargins(0, 0, 0, 0)
         
         self.regions_group = QGroupBox("영역 좌표 설정")
+        self.regions_group.setStyleSheet(Styles.GROUP_BOX)
         self.regions_layout = QGridLayout()
         self.regions_container = QWidget()
         self.regions_container.setLayout(self.regions_layout)
@@ -316,12 +320,13 @@ class SettingsDialog(QDialog):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setWidget(self.regions_container)
+        scroll.setStyleSheet(Styles.SCROLL_AREA)
         
         regions_main_layout = QVBoxLayout()
         
         # 자동 인식 버튼 (우측으로 이동)
         self.auto_detect_btn = QPushButton("투명 영역 자동 인식")
-        self.auto_detect_btn.setStyleSheet("background-color: #2196F3; color: white; font-weight: bold; padding: 5px;")
+        self.auto_detect_btn.setStyleSheet(Styles.BTN_PRIMARY)
         self.auto_detect_btn.clicked.connect(self.auto_detect_regions)
         regions_main_layout.addWidget(self.auto_detect_btn)
         
@@ -330,9 +335,13 @@ class SettingsDialog(QDialog):
         # 영역 추가/삭제 버튼
         region_btn_layout = QHBoxLayout()
         self.add_region_btn = QPushButton("영역 추가")
+        self.add_region_btn.setStyleSheet(Styles.BTN_SECONDARY)
         self.add_region_btn.clicked.connect(lambda: self.add_region_input(None))
+        
         self.remove_region_btn = QPushButton("삭제")
+        self.remove_region_btn.setStyleSheet(Styles.BTN_DESTRUCTIVE)
         self.remove_region_btn.clicked.connect(self.remove_last_region)
+        
         region_btn_layout.addWidget(self.add_region_btn)
         region_btn_layout.addWidget(self.remove_region_btn)
         regions_main_layout.addLayout(region_btn_layout)
@@ -351,15 +360,20 @@ class SettingsDialog(QDialog):
         
         # --- 하단: 프레임 목록 (가로 스크롤) ---
         bottom_group = QGroupBox("프레임 목록")
+        bottom_group.setStyleSheet(Styles.GROUP_BOX)
         bottom_layout = QVBoxLayout()
         
         # 목록 컨트롤 (추가/삭제)
         list_ctrl_layout = QHBoxLayout()
         list_ctrl_layout.addStretch()
         self.add_btn = QPushButton("프레임 추가")
+        self.add_btn.setStyleSheet(Styles.BTN_SECONDARY)
         self.add_btn.clicked.connect(self.add_new_frame)
+        
         self.del_btn = QPushButton("선택 삭제")
+        self.del_btn.setStyleSheet(Styles.BTN_DESTRUCTIVE)
         self.del_btn.clicked.connect(self.delete_current_frame)
+        
         list_ctrl_layout.addWidget(self.add_btn)
         list_ctrl_layout.addWidget(self.del_btn)
         bottom_layout.addLayout(list_ctrl_layout)
@@ -371,6 +385,7 @@ class SettingsDialog(QDialog):
         self.frame_list.setFlow(QListWidget.LeftToRight) # 가로 배치
         self.frame_list.setWrapping(False) # 줄바꿈 없음 (가로 스크롤)
         self.frame_list.setResizeMode(QListWidget.Adjust)
+        self.frame_list.setStyleSheet(Styles.LIST_WIDGET)
         self.frame_list.setSpacing(10)
         self.frame_list.setFixedHeight(130) # 높이 고정
         self.frame_list.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
@@ -671,34 +686,22 @@ class SettingsDialog(QDialog):
             
             # 스타일 적용 (파란색 테두리)
             for w in self.region_widgets:
-                w.setStyleSheet("""
-                    QGroupBox {
-                        font-weight: bold;
-                        border: 1px solid #cccccc;
-                        border-radius: 5px;
-                        margin-top: 10px;
-                    }
-                    QGroupBox::title {
-                        subcontrol-origin: margin;
-                        left: 10px;
-                        padding: 0 3px 0 3px;
-                    }
-                """)
+                w.setStyleSheet(Styles.GROUP_BOX)
             
-            widget.setStyleSheet("""
-                QGroupBox {
+            widget.setStyleSheet(f"""
+                QGroupBox {{
                     font-weight: bold;
-                    border: 2px solid #2196F3;
+                    border: 2px solid {Colors.PRIMARY};
                     border-radius: 5px;
                     margin-top: 10px;
                     background-color: #E3F2FD;
-                }
-                QGroupBox::title {
+                }}
+                QGroupBox::title {{
                     subcontrol-origin: margin;
                     left: 10px;
                     padding: 0 3px 0 3px;
-                    color: #2196F3;
-                }
+                    color: {Colors.PRIMARY};
+                }}
             """)
             
             # 스크롤 이동

@@ -13,7 +13,10 @@ from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PIL import Image as PILImage
 from .drop_area import SingleDropArea, MultiDropArea
 from .frame_manager import FrameManager
+from .drop_area import SingleDropArea, MultiDropArea
+from .frame_manager import FrameManager
 from .settings_dialog import SettingsDialog
+from .styles import Styles, Colors, Fonts
 
 
 class ImageUtils:
@@ -112,59 +115,55 @@ class MultiWindow(QMainWindow):
         # 추가: 첫 번째 체크 상태 관리 변수
         self.is_first_check = True
 
-        # 종료 버튼을 우측 상단에 배치
-        self.exit_button = QPushButton("종료", self)
-        self.exit_button.setFont(QFont("Arial", 10))
-        self.exit_button.setStyleSheet("background-color: #bbbbbb; color: black; padding: 5px;")
-        self.exit_button.clicked.connect(self.close_application)
-        self.exit_button.setFixedSize(60, 30)
-        self.exit_button.move(self.width() - 70, 10)
+        # 종료 버튼 제거됨
 
-        # 창 크기가 변경될 때 종료 버튼 위치 조정
-        self.resizeEvent = self.on_resize
+
 
         # 메인 레이아웃 설정
         main_layout = QVBoxLayout()
         main_layout.setSpacing(5)
 
         # 폴더 번호 입력을 위한 가로 레이아웃
-        folder_layout = QHBoxLayout()
+        folder_container = QWidget()
+        folder_layout = QHBoxLayout(folder_container)
+        folder_layout.setContentsMargins(0, 0, 0, 0)
 
         # 폴더 번호 입력 라벨
-        self.folder_label = QLabel("폴더 번호 입력:")
-        self.folder_label.setFont(QFont("Arial", 16))
+        self.folder_label = QLabel("폴더 번호:")
+        self.folder_label.setStyleSheet(Styles.LABEL_TITLE)
         folder_layout.addWidget(self.folder_label)
 
         # 폴더 번호 입력 필드
         self.folder_input = QLineEdit()
-        self.folder_input.setFont(QFont("Arial", 16))
+        self.folder_input.setPlaceholderText("예: 20231025")
+        self.folder_input.setStyleSheet(Styles.INPUT)
         self.folder_input.textChanged.connect(self.check_folder_exists)
         folder_layout.addWidget(self.folder_input)
 
-        main_layout.addLayout(folder_layout)
+        main_layout.addWidget(folder_container)
 
         # 정보 표시를 위한 영역
-        info_layout = QVBoxLayout()
+        info_container = QWidget()
+        info_layout = QVBoxLayout(info_container)
         info_layout.setSpacing(2)
+        info_layout.setContentsMargins(10, 0, 10, 0)
 
         # 폴더 존재 여부 표시
         self.folder_exists_label = QLabel("")
-        self.folder_exists_label.setFont(QFont("Arial", 12))
+        self.folder_exists_label.setStyleSheet(Styles.STATUS_LABEL)
         info_layout.addWidget(self.folder_exists_label)
 
         # 새 폴더 생성 예상 정보 표시
         self.new_folder_label = QLabel("")
-        self.new_folder_label.setFont(QFont("Arial", 12))
-        self.new_folder_label.setStyleSheet("color: blue;")
+        self.new_folder_label.setStyleSheet(Styles.STATUS_LABEL + Styles.STATUS_INFO)
         info_layout.addWidget(self.new_folder_label)
 
         # 마지막 폴더 생성 시간 표시
         self.last_folder_time_label = QLabel("")
-        self.last_folder_time_label.setFont(QFont("Arial", 12))
-        self.last_folder_time_label.setStyleSheet("color: purple;")
+        self.last_folder_time_label.setStyleSheet(Styles.STATUS_LABEL + "color: #8E24AA;") # Purple
         info_layout.addWidget(self.last_folder_time_label)
 
-        main_layout.addLayout(info_layout)
+        main_layout.addWidget(info_container)
 
         # 사이 공간 최소화
         main_layout.addSpacerItem(QSpacerItem(20, 5, QSizePolicy.Minimum, QSizePolicy.Fixed))
@@ -178,57 +177,17 @@ class MultiWindow(QMainWindow):
         mode_layout.addWidget(mode_label)
 
         self.four_cut_button = QPushButton("네컷 모드")
-        self.four_cut_button.setFont(QFont("Malgun Gothic", 12))
         self.four_cut_button.setFixedSize(120, 40)
         self.four_cut_button.setCheckable(True)
         self.four_cut_button.setChecked(True)  # 기본값: 네컷 모드
-        self.four_cut_button.setStyleSheet("""
-                    QPushButton {
-                        background-color: #4CAF50;
-                        color: white;
-                        border: 2px solid #4CAF50;
-                        border-radius: 5px;
-                        font-weight: bold;
-                    }
-                    QPushButton:hover {
-                        background-color: #45a049;
-                    }
-                    QPushButton:checked {
-                        background-color: #4CAF50;
-                        color: white;
-                    }
-                    QPushButton:!checked {
-                        background-color: white;
-                        color: #4CAF50;
-                    }
-                """)
+        self.four_cut_button.setStyleSheet(Styles.BTN_TOGGLE)
         self.four_cut_button.clicked.connect(self.select_four_cut_mode)
         mode_layout.addWidget(self.four_cut_button)
 
         self.single_cut_button = QPushButton("한컷 모드")
-        self.single_cut_button.setFont(QFont("Malgun Gothic", 12))
         self.single_cut_button.setFixedSize(120, 40)
         self.single_cut_button.setCheckable(True)
-        self.single_cut_button.setStyleSheet("""
-                    QPushButton {
-                        background-color: #2196F3;
-                        color: white;
-                        border: 2px solid #2196F3;
-                        border-radius: 5px;
-                        font-weight: bold;
-                    }
-                    QPushButton:hover {
-                        background-color: #1976D2;
-                    }
-                    QPushButton:checked {
-                        background-color: #2196F3;
-                        color: white;
-                    }
-                    QPushButton:!checked {
-                        background-color: white;
-                        color: #2196F3;
-                    }
-                """)
+        self.single_cut_button.setStyleSheet(Styles.BTN_TOGGLE)
         self.single_cut_button.clicked.connect(self.select_single_cut_mode)
         mode_layout.addWidget(self.single_cut_button)
 
@@ -247,34 +206,33 @@ class MultiWindow(QMainWindow):
 
         main_layout.addWidget(self.drop_container)
 
-        # 상태 메시지 영역 확대
-        self.status_message = QLabel("")
-        self.status_message.setFont(QFont("Arial", 12))
+        # 상태 메시지 영역
+        self.status_message = QLabel("준비됨")
         self.status_message.setAlignment(Qt.AlignCenter)
-        self.status_message.setStyleSheet("color: #007700; margin: 10px 0px;")
+        self.status_message.setStyleSheet(Styles.STATUS_LABEL + Styles.STATUS_SUCCESS + "background-color: #E8F5E9; border-radius: 4px; margin: 10px 0px;")
         self.status_message.setWordWrap(True)
-        self.status_message.setMinimumHeight(50)  # 최소 높이 설정으로 두 줄 텍스트 수용
-        self.status_message.setMaximumHeight(70)  # 최대 높이 제한
+        self.status_message.setMinimumHeight(40)
+        self.status_message.setMaximumHeight(60)
         main_layout.addWidget(self.status_message)
 
-        # 가공된 이미지 미리보기 영역만 유지
+        # 가공된 이미지 미리보기 영역
         preview_layout = QHBoxLayout()
 
-        # 가공된 이미지 미리보기 프레임만 유지
+        # 가공된 이미지 미리보기 프레임
         self.processed_frame = QFrame()
-        self.processed_frame.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        self.processed_frame.setLineWidth(1)
-        self.processed_frame.setMinimumSize(280, 180)
-        self.processed_frame.setStyleSheet("background-color: #f0f0f0;")
+        self.processed_frame.setStyleSheet(Styles.PROCESSED_FRAME)
+        self.processed_frame.setMinimumSize(280, 200)
 
         processed_frame_layout = QVBoxLayout(self.processed_frame)
+        processed_frame_layout.setContentsMargins(10, 10, 10, 10)
+        
         processed_title = QLabel("가공된 이미지")
         processed_title.setAlignment(Qt.AlignCenter)
-        processed_title.setFont(QFont("Arial", 12, QFont.Bold))
+        processed_title.setStyleSheet(Styles.LABEL_TITLE)
 
-        self.processed_label = QLabel("가공 후 미리보기")
+        self.processed_label = QLabel("이미지가 여기에 표시됩니다")
         self.processed_label.setAlignment(Qt.AlignCenter)
-        self.processed_label.setFont(QFont("Arial", 11))
+        self.processed_label.setStyleSheet(Styles.LABEL_SUBTITLE)
 
         processed_frame_layout.addWidget(processed_title)
         processed_frame_layout.addWidget(self.processed_label)
@@ -291,30 +249,27 @@ class MultiWindow(QMainWindow):
 
         # 가공하기 버튼
         self.process_button = QPushButton("가공하기")
-        self.process_button.setFont(QFont("Arial", 14))
-        self.process_button.setStyleSheet("background-color: #4CAF50; color: white; padding: 8px;")
+        self.process_button.setStyleSheet(Styles.BTN_SUCCESS)
         self.process_button.setEnabled(False)
         self.process_button.clicked.connect(self.process_selected_image)
         button_layout.addWidget(self.process_button)
 
         # 사진 초기화 버튼
         self.reset_image_button = QPushButton("사진 초기화")
-        self.reset_image_button.setFont(QFont("Arial", 14))
-        self.reset_image_button.setStyleSheet("background-color: #FF9800; color: white; padding: 8px;")
+        self.reset_image_button.setStyleSheet(Styles.BTN_ACCENT)
         self.reset_image_button.clicked.connect(self.reset_image)
         button_layout.addWidget(self.reset_image_button)
 
         # 인쇄 버튼
         self.print_button = QPushButton("인쇄")
-        self.print_button.setFont(QFont("Arial", 14))
+        self.print_button.setStyleSheet(Styles.BTN_PRIMARY)
         self.print_button.setEnabled(False)
         self.print_button.clicked.connect(self.print_image)
         button_layout.addWidget(self.print_button)
 
         # 새로 만들기 버튼
         self.reset_button = QPushButton("새로 만들기")
-        self.reset_button.setFont(QFont("Arial", 14))
-        self.reset_button.setStyleSheet("background-color: #f44336; color: white; padding: 8px;")
+        self.reset_button.setStyleSheet(Styles.BTN_DESTRUCTIVE)
         self.reset_button.clicked.connect(self.reset_application)
         button_layout.addWidget(self.reset_button)
 
@@ -323,11 +278,11 @@ class MultiWindow(QMainWindow):
         # 프레임 선택을 위한 레이아웃
         frame_layout = QHBoxLayout()
         frame_label = QLabel("프레임 선택:")
-        frame_label.setFont(QFont("Arial", 14))
+        frame_label.setStyleSheet(f"font-family: 'Malgun Gothic'; font-size: 14px; font-weight: bold; color: {Colors.TEXT_PRIMARY};")
         frame_layout.addWidget(frame_label)
 
         self.frame_combo = QComboBox()
-        self.frame_combo.setFont(QFont("Arial", 14))
+        self.frame_combo.setStyleSheet(Styles.INPUT)
         self.frame_combo.addItem("4컷 - 파란색", "01.png")
         self.frame_combo.addItem("4컷 - 빨간색", "02.png")
         self.frame_combo.addItem("1컷 - 파란색", "03.png")
@@ -337,15 +292,15 @@ class MultiWindow(QMainWindow):
 
         # 설정 버튼 (구 프레임 관리)
         self.settings_btn = QPushButton("⚙")
-        self.settings_btn.setFixedSize(40, 40)
-        self.settings_btn.setFont(QFont("Arial", 20))
+        self.settings_btn.setFixedSize(32, 32)
+        self.settings_btn.setStyleSheet(Styles.BTN_ICON)
         self.settings_btn.setToolTip("설정")
         self.settings_btn.clicked.connect(self.open_settings)
         frame_layout.addWidget(self.settings_btn)
 
         # 프레임 미리보기 버튼
         self.preview_frame_btn = QPushButton("프레임 미리보기")
-        self.preview_frame_btn.setFont(QFont("Arial", 12))
+        self.preview_frame_btn.setStyleSheet(Styles.BTN_SECONDARY)
         self.preview_frame_btn.clicked.connect(self.show_frame_preview)
         frame_layout.addWidget(self.preview_frame_btn)
 
@@ -580,10 +535,7 @@ class MultiWindow(QMainWindow):
             print(f"[DEBUG] MultiWindow: 이미지 로드 오류: {e}")
             return None
 
-    def on_resize(self, event):
-        """창 크기가 변경될 때 종료 버튼 위치 조정"""
-        self.exit_button.move(self.width() - 70, 10)
-        super().resizeEvent(event)
+
 
     def show_frame_preview(self):
         """선택된 프레임 미리보기"""
@@ -941,14 +893,13 @@ class MultiWindow(QMainWindow):
             QMessageBox.warning(self, "경고", "유효한 폴더 번호를 입력해주세요.")
             return
 
-        if self.folder_input.isEnabled():
+        if not self.folder_input.isReadOnly():
             reply = QMessageBox.question(self, '폴더 번호 확인',
                                          f"폴더 번호를 '{folder_number_text}'로 설정하시겠습니까?\n설정 후에는 변경할 수 없습니다.",
                                          QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
 
             if reply == QMessageBox.Yes:
-                self.folder_input.setEnabled(False)
-                self.folder_input.setStyleSheet("background-color: #e0e0e0;")
+                self.folder_input.setReadOnly(True)
             else:
                 return
 
@@ -964,7 +915,6 @@ class MultiWindow(QMainWindow):
         processed_path = self.process_and_save(self.selected_files, self.created_folder)
 
         # 가공된 이미지 미리보기 표시 - PIL 적용
-        # 가공된 이미지 미리보기 표시 - PIL 적용
         if processed_path and os.path.exists(processed_path):
             print(f"[DEBUG] 가공된 이미지 로드 시작: {processed_path}")
 
@@ -972,7 +922,7 @@ class MultiWindow(QMainWindow):
 
             # PIL을 통해 이미지 로드 (통합된 유틸리티 사용)
             preview_width = min(self.processed_frame.width() - 20, 260)
-            preview_height = min(self.processed_frame.height() - 20, 160)
+            preview_height = min(self.processed_frame.width() - 20, 160)
 
             print(f"[DEBUG] 가공된 이미지 미리보기 크기: {preview_width}x{preview_height}")
 

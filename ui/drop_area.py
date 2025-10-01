@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QLabel, QPushButto
 from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 from .drop_zone import DropZone
+from .styles import Styles, Fonts, Colors
 
 
 class SingleDropArea(QFrame):
@@ -20,11 +21,12 @@ class SingleDropArea(QFrame):
         self.setMinimumSize(540, 330)
         self.setAcceptDrops(False)
 
-        self.setStyleSheet("""
-            SingleDropArea {
+        self.setStyleSheet(f"""
+            SingleDropArea {{
                 background-color: #fafafa;
                 border-radius: 10px;
-            }
+                border: 1px solid {Colors.BORDER};
+            }}
         """)
 
         main_layout = QVBoxLayout(self)
@@ -34,8 +36,7 @@ class SingleDropArea(QFrame):
         # 제목 라벨
         title_label = QLabel("이미지 드롭 영역 (1개) - 폴더 번호를 먼저 입력하세요")
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Malgun Gothic", 13, QFont.Bold))
-        title_label.setStyleSheet("color: #333; margin-bottom: 8px;")
+        title_label.setStyleSheet(f"{Fonts.heading()}; color: {Colors.TEXT_PRIMARY}; margin-bottom: 8px;")
         main_layout.addWidget(title_label)
 
         # 상하 간격을 위한 스페이서 추가
@@ -55,27 +56,10 @@ class SingleDropArea(QFrame):
         main_layout.addSpacing(40)
 
         # 파일 선택 버튼
+        # 파일 선택 버튼
         self.select_btn = QPushButton("또는 파일 선택")
-        self.select_btn.setFont(QFont("Malgun Gothic", 11))
         self.select_btn.setFixedSize(140, 32)
-        self.select_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: transparent;
-                        color: #888;
-                        border: 1px solid #ccc;
-                        padding: 3px 8px;
-                        border-radius: 3px;
-                        font-size: 10px;
-                        margin-top: 8px;
-                    }
-                    QPushButton:hover {
-                        color: #555;
-                        border-color: #aaa;
-                    }
-                    QPushButton:pressed {
-                        background-color: #f0f0f0;
-                    }
-                """)
+        self.select_btn.setStyleSheet(Styles.BTN_SECONDARY)
         main_layout.addWidget(self.select_btn, 0, Qt.AlignCenter)
 
         self.parent_window = parent
@@ -102,11 +86,12 @@ class MultiDropArea(QFrame):
         self.setMinimumSize(540, 330)  # 540x440 → 540x330 (세로 110px 감소)
         self.setAcceptDrops(False)
 
-        self.setStyleSheet("""
-            MultiDropArea {
+        self.setStyleSheet(f"""
+            MultiDropArea {{
                 background-color: #fafafa;
                 border-radius: 10px;
-            }
+                border: 1px solid {Colors.BORDER};
+            }}
         """)
 
         main_layout = QVBoxLayout(self)
@@ -116,8 +101,7 @@ class MultiDropArea(QFrame):
         # 제목 라벨
         title_label = QLabel("이미지 드롭 영역 (4개) - 폴더 번호를 먼저 입력하세요")
         title_label.setAlignment(Qt.AlignCenter)
-        title_label.setFont(QFont("Malgun Gothic", 13, QFont.Bold))
-        title_label.setStyleSheet("color: #333; margin-bottom: 8px;")
+        title_label.setStyleSheet(f"{Fonts.heading()}; color: {Colors.TEXT_PRIMARY}; margin-bottom: 8px;")
         main_layout.addWidget(title_label)
 
         # 상단 행
@@ -147,27 +131,10 @@ class MultiDropArea(QFrame):
         main_layout.addLayout(bottom_layout)
 
         # 파일 선택 버튼
+        # 파일 선택 버튼
         self.select_btn = QPushButton("또는 파일 선택")
-        self.select_btn.setFont(QFont("Malgun Gothic", 11))
         self.select_btn.setFixedSize(140, 32)
-        self.select_btn.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                color: #888;
-                border: 1px solid #ccc;
-                padding: 3px 8px;
-                border-radius: 3px;
-                font-size: 10px;
-                margin-top: 8px;
-            }
-            QPushButton:hover {
-                color: #555;
-                border-color: #aaa;
-            }
-            QPushButton:pressed {
-                background-color: #f0f0f0;
-            }
-        """)
+        self.select_btn.setStyleSheet(Styles.BTN_SECONDARY)
         main_layout.addWidget(self.select_btn, 0, Qt.AlignCenter)
 
         self.parent_window = parent
