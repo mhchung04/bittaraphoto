@@ -12,7 +12,8 @@ from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PIL import Image as PILImage
 from .drop_area import SingleDropArea, MultiDropArea
-from .frame_manager import FrameManager, FrameEditorDialog
+from .frame_manager import FrameManager
+from .settings_dialog import SettingsDialog
 
 
 class ImageUtils:
@@ -334,11 +335,13 @@ class MultiWindow(QMainWindow):
         self.frame_combo.addItem("프레임 없음", "none")
         frame_layout.addWidget(self.frame_combo)
 
-        # 프레임 관리 버튼
-        self.frame_manager_btn = QPushButton("프레임 관리")
-        self.frame_manager_btn.setFont(QFont("Arial", 12))
-        self.frame_manager_btn.clicked.connect(self.open_frame_manager)
-        frame_layout.addWidget(self.frame_manager_btn)
+        # 설정 버튼 (구 프레임 관리)
+        self.settings_btn = QPushButton("⚙")
+        self.settings_btn.setFixedSize(40, 40)
+        self.settings_btn.setFont(QFont("Arial", 20))
+        self.settings_btn.setToolTip("설정")
+        self.settings_btn.clicked.connect(self.open_settings)
+        frame_layout.addWidget(self.settings_btn)
 
         # 프레임 미리보기 버튼
         self.preview_frame_btn = QPushButton("프레임 미리보기")
@@ -396,9 +399,9 @@ class MultiWindow(QMainWindow):
         # 데이터 갱신을 위해 강제 호출
         self.on_frame_changed(self.frame_combo.currentIndex())
 
-    def open_frame_manager(self):
-        """프레임 관리자 열기"""
-        dialog = FrameEditorDialog(self.frame_manager, self)
+    def open_settings(self):
+        """설정 다이얼로그 열기"""
+        dialog = SettingsDialog(self.frame_manager, self)
         dialog.exec_()
         self.update_frame_combo()
 
