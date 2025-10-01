@@ -12,6 +12,7 @@ from PyQt5.QtCore import Qt, QRect
 from PyQt5.QtPrintSupport import QPrinter, QPrintDialog
 from PIL import Image as PILImage
 from .drop_area import SingleDropArea, MultiDropArea
+from .frame_manager import FrameManager, FrameEditorDialog
 
 
 class ImageUtils:
@@ -333,6 +334,12 @@ class MultiWindow(QMainWindow):
         self.frame_combo.addItem("프레임 없음", "none")
         frame_layout.addWidget(self.frame_combo)
 
+        # 프레임 관리 버튼
+        self.frame_manager_btn = QPushButton("프레임 관리")
+        self.frame_manager_btn.setFont(QFont("Arial", 12))
+        self.frame_manager_btn.clicked.connect(self.open_frame_manager)
+        frame_layout.addWidget(self.frame_manager_btn)
+
         # 프레임 미리보기 버튼
         self.preview_frame_btn = QPushButton("프레임 미리보기")
         self.preview_frame_btn.setFont(QFont("Arial", 12))
@@ -361,6 +368,39 @@ class MultiWindow(QMainWindow):
 
         # 모드 관련 변수 초기화
         self.current_mode = "four_cut"  # 기본값: 네컷 모드
+
+        # 프레임 매니저 초기화 및 콤보박스 설정
+        self.frame_manager = FrameManager()
+        self.update_frame_combo()
+
+    def update_frame_combo(self):
+        """프레임 콤보박스 목록 업데이트"""
+        current_text = self.frame_combo.currentText()
+        self.frame_combo.blockSignals(True)
+        self.frame_combo.clear()
+        
+        frames = self.frame_manager.get_all_frames()
+        for frame in frames:
+            self.frame_combo.addItem(frame['name'], frame['filename'])
+            
+        self.frame_combo.addItem("프레임 없음", "none")
+        
+        # 이전 선택 복원 시도
+        index = self.frame_combo.findText(current_text)
+        if index >= 0:
+            self.frame_combo.setCurrentIndex(index)
+        else:
+            self.frame_combo.setCurrentIndex(0)
+            
+        self.frame_combo.blockSignals(False)
+        # 데이터 갱신을 위해 강제 호출
+        self.on_frame_changed(self.frame_combo.currentIndex())
+
+    def open_frame_manager(self):
+        """프레임 관리자 열기"""
+        dialog = FrameEditorDialog(self.frame_manager, self)
+        dialog.exec_()
+        self.update_frame_combo()
 
     def select_four_cut_mode(self):
         """네컷 모드 선택"""
@@ -1016,32 +1056,22 @@ class MultiWindow(QMainWindow):
                     shutil.copy(files[0], processed_image_path)
             else:
                 photo_regions = []
-
-                if self.selected_frame in ["01.png","02.png"]:
-                    # 새로운 01.png 좌표 적용
-                    '''
-                    regions = [
-                        (63, 66, 1757, 1195),  # 1번 영역
-                        (1796, 666, 3490, 1795),  # 2번 영역
-                        (63, 1229, 1757, 2358),  # 3번 영역
-                        (1796, 1826, 3490, 2955)  # 4번 영역
-                    ]'''
-                    regions = [
-                        (102, 98, 1348, 930),  # 1번 영역
-                        (1383, 511, 2628, 1343),  # 2번 영역
-                        (102, 973, 1348, 1805),  # 3번 영역
-                        (1383, 1387, 2628, 2218)  # 4번 영역
-                    ]
-                elif self.selected_frame in ["03.png","04.png"]:
-                    regions = [
-                        (101, 104, 3394, 1966),
-                    ]
+                
+                # FrameManager를 통해 영역 정보 가져오기
+                # 콤보박스에 표시된 이름으로 프레임 데이터 검색
+                current_frame_name = self.frame_combo.currentText()
+                frame_data = self.frame_manager.get_frame_by_name(current_frame_name)
+                
+                if frame_data:
+                    regions = frame_data.get('regions', [])
                 else:
                     regions = []
 
                 for i, file_path in enumerate(files):
                     if file_path and os.path.exists(file_path):
-                        photo_regions.append((file_path, regions[i]))
+                        # 영역 정보가 충분하지 않으면 건너뛰거나 예외 처리
+                        if i < len(regions):
+                            photo_regions.append((file_path, regions[i]))
 
                 if photo_regions:
                     insert_images_into_frame(photo_regions, frame_path, processed_image_path)
