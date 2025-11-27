@@ -56,14 +56,14 @@ class DropZone(QFrame):
         self.image_path = None
 
         # 기본 설정
-        self.setMinimumSize(150, 120) # 최소 크기 설정
+        self.setMinimumSize(130, 90) # 최소 크기 설정
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
         
-        # 레이아웃 설정
+        # 레이아웃 설정 - 더 넓은 여백
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        self.layout.setSpacing(5)
+        self.layout.setContentsMargins(8, 8, 8, 8)
+        self.layout.setSpacing(6)
         
         # 이미지/번호 표시 라벨
         self.image_label = QLabel()
@@ -71,13 +71,12 @@ class DropZone(QFrame):
         self.image_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.layout.addWidget(self.image_label)
         
-        # 파일명 표시 라벨
         self.filename_label = QLabel()
         self.filename_label.setAlignment(Qt.AlignCenter)
-        self.filename_label.setFont(QFont(Fonts.FAMILY, 10))
+        self.filename_label.setFont(QFont(Fonts.FAMILY, 9))
         self.filename_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
         self.filename_label.setWordWrap(True)
-        self.filename_label.setFixedHeight(40) # 2줄 정도 높이 확보
+        self.filename_label.setFixedHeight(30) # 여유있는 높이
         self.layout.addWidget(self.filename_label)
 
         # 초기 상태 설정
@@ -109,8 +108,8 @@ class DropZone(QFrame):
             # 미리보기 크기 계산 (라벨 크기에 맞춤)
             target_width = self.image_label.width()
             target_height = self.image_label.height()
-            if target_width <= 0: target_width = 220
-            if target_height <= 0: target_height = 120
+            if target_width <= 0: target_width = 130
+            if target_height <= 0: target_height = 90
             
             pil_image.thumbnail((target_width, target_height), PILImage.Resampling.LANCZOS)
             
@@ -121,21 +120,38 @@ class DropZone(QFrame):
                 self.reset_to_default()
                 return
 
-            # 이미지 설정
+            # 이미지 설정 (rounded corners effect)
             self.image_label.setPixmap(pixmap)
             self.image_label.setText("") # 텍스트 제거
+            self.image_label.setStyleSheet("""
+                QLabel {
+                    border-radius: 6px;
+                    background-color: transparent;
+                }
+            """)
             
-            # 파일명 설정
+            # 파일명 설정 - 더 세련된 스타일
             filename = os.path.basename(image_path)
             self.filename_label.setText(filename)
-            self.filename_label.setStyleSheet(f"color: {Colors.TEXT_PRIMARY}; font-weight: bold;")
+            self.filename_label.setStyleSheet(f"""
+                QLabel {{
+                    color: {Colors.TEXT_PRIMARY};
+                    font-weight: 600;
+                    font-size: 11px;
+                    background-color: rgba(255, 255, 255, 0.9);
+                    border-radius: 4px;
+                    padding: 6px 10px;
+                }}
+            """)
 
-            # 스타일 업데이트 (성공)
+            # 스타일 업데이트 (성공) - 모던한 디자인
             self.setStyleSheet(f"""
                 DropZone {{
                     border: 2px solid {Colors.SUCCESS};
-                    border-radius: 8px;
-                    background-color: #E8F5E9; /* Light Green */
+                    border-radius: 12px;
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                                stop:0 #F1F8F4, stop:1 #E8F5E9);
+                    padding: 8px;
                 }}
             """)
 
@@ -148,18 +164,31 @@ class DropZone(QFrame):
         self.image_path = None
         self.image_label.setPixmap(QPixmap())
         self.image_label.setText(f"{self.zone_id + 1}")
-        self.image_label.setFont(QFont(Fonts.FAMILY, 40, QFont.Bold))
-        self.image_label.setStyleSheet(f"color: {Colors.TEXT_HINT}; border: none;")
+        self.image_label.setFont(QFont(Fonts.FAMILY, 36, QFont.Bold))
+        self.image_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_HINT};
+                border: none;
+                background-color: transparent;
+            }}
+        """)
         
         self.filename_label.setText("이미지 드롭")
-        self.filename_label.setStyleSheet(f"color: {Colors.TEXT_HINT};")
+        self.filename_label.setStyleSheet(f"""
+            QLabel {{
+                color: {Colors.TEXT_HINT};
+                font-size: 11px;
+                background-color: transparent;
+            }}
+        """)
 
-        # 스타일 업데이트 (기본)
+        # 스타일 업데이트 (기본) - 부드러운 디자인
         self.setStyleSheet(f"""
             DropZone {{
                 border: 2px dashed {Colors.BORDER};
-                border-radius: 8px;
-                background-color: {Colors.SURFACE};
+                border-radius: 12px;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                            stop:0 #FAFAFA, stop:1 #F5F5F5);
             }}
         """)
 
@@ -173,9 +202,11 @@ class DropZone(QFrame):
             event.acceptProposedAction()
             self.setStyleSheet(f"""
                 DropZone {{
-                    border: 2px dashed {Colors.PRIMARY};
-                    border-radius: 8px;
-                    background-color: #E3F2FD; /* Light Blue */
+                    border: 2px solid {Colors.PRIMARY};
+                    border-radius: 12px;
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                                stop:0 #E3F2FD, stop:1 #BBDEFB);
+                    padding: 8px;
                 }}
             """)
 
@@ -185,8 +216,10 @@ class DropZone(QFrame):
             self.setStyleSheet(f"""
                 DropZone {{
                     border: 2px solid {Colors.SUCCESS};
-                    border-radius: 8px;
-                    background-color: #E8F5E9;
+                    border-radius: 12px;
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                                stop:0 #F1F8F4, stop:1 #E8F5E9);
+                    padding: 8px;
                 }}
             """)
         else:
@@ -194,8 +227,9 @@ class DropZone(QFrame):
             self.setStyleSheet(f"""
                 DropZone {{
                     border: 2px dashed {Colors.BORDER};
-                    border-radius: 8px;
-                    background-color: {Colors.SURFACE};
+                    border-radius: 12px;
+                    background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                                                stop:0 #FAFAFA, stop:1 #F5F5F5);
                 }}
             """)
 

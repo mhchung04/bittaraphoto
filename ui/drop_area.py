@@ -17,8 +17,9 @@ class SingleDropArea(QFrame):
         super().__init__(parent)
         self.setFrameStyle(QFrame.NoFrame)
         self.setLineWidth(0)
-        # 한컷 모드용 크기
-        self.setMinimumSize(540, 330)
+        # 한컷 모드용 크기 (MultiDropArea와 동일하게 맞춤)
+        self.setMinimumSize(540, 260)
+        self.setMaximumHeight(260)  # 최대 높이도 고정하여 확장 방지
         self.setAcceptDrops(False)
 
         self.setStyleSheet(f"""
@@ -39,8 +40,8 @@ class SingleDropArea(QFrame):
         title_label.setStyleSheet(f"{Fonts.heading()}; color: {Colors.TEXT_PRIMARY}; margin-bottom: 8px;")
         main_layout.addWidget(title_label)
 
-        # 상하 간격을 위한 스페이서 추가
-        main_layout.addSpacing(20)
+        # 상하 간격을 위한 스페이서 (Vertical Centering)
+        main_layout.addStretch(1)
 
         # 단일 드롭존 (중앙 배치)
         zone_layout = QHBoxLayout()
@@ -52,8 +53,8 @@ class SingleDropArea(QFrame):
         zone_layout.addStretch()
         main_layout.addLayout(zone_layout)
 
-        # 하단 간격을 위한 스페이서 추가
-        main_layout.addSpacing(40)
+        # 하단 간격을 위한 스페이서 (Vertical Centering)
+        main_layout.addStretch(1)
 
         # 파일 선택 버튼
         # 파일 선택 버튼
@@ -83,7 +84,8 @@ class MultiDropArea(QFrame):
         self.setFrameStyle(QFrame.NoFrame)
         self.setLineWidth(0)
         # 전체 영역 크기 조정 (드롭존 높이 축소에 맞춰)
-        self.setMinimumSize(540, 330)  # 540x440 → 540x330 (세로 110px 감소)
+        self.setMinimumSize(540, 260)  # 540x330 → 540x260
+        self.setMaximumHeight(260)  # 최대 높이도 고정하여 확장 방지
         self.setAcceptDrops(False)
 
         self.setStyleSheet(f"""
@@ -116,7 +118,7 @@ class MultiDropArea(QFrame):
 
         # 상하 간격 (축소된 높이에 맞춰 조정)
         main_layout.addLayout(top_layout)
-        main_layout.addSpacing(12)  # 상하 드롭존 사이 간격 축소 (18 → 12)
+        main_layout.addSpacing(5)  # 상하 드롭존 사이 간격 축소
 
         # 하단 행
         bottom_layout = QHBoxLayout()

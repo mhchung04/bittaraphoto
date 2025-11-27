@@ -212,6 +212,52 @@ class Styles:
     STATUS_ERROR = "color: #C62828; font-weight: bold;"   # Red
     STATUS_INFO = f"color: {Colors.PRIMARY};"             # Blue
     
+    # Status Cards (Unified UI)
+    STATUS_CARD_INFO = f"""
+        QFrame {{
+            background-color: #E3F2FD; /* Light Blue */
+            border: 1px solid #90CAF9;
+            border-radius: 6px;
+        }}
+        QLabel {{
+            color: #0D47A1; /* Dark Blue Text */
+            font-family: "{Fonts.FAMILY}";
+            font-size: 12px;
+            border: none;
+            background: transparent;
+        }}
+    """
+
+    STATUS_CARD_SUCCESS = f"""
+        QFrame {{
+            background-color: #E8F5E9; /* Light Green */
+            border: 1px solid #A5D6A7;
+            border-radius: 6px;
+        }}
+        QLabel {{
+            color: #1B5E20; /* Dark Green Text */
+            font-family: "{Fonts.FAMILY}";
+            font-size: 12px;
+            border: none;
+            background: transparent;
+        }}
+    """
+
+    STATUS_CARD_ERROR = f"""
+        QFrame {{
+            background-color: #FFEBEE; /* Light Red */
+            border: 1px solid #EF9A9A;
+            border-radius: 6px;
+        }}
+        QLabel {{
+            color: #B71C1C; /* Dark Red Text */
+            font-family: "{Fonts.FAMILY}";
+            font-size: 12px;
+            border: none;
+            background: transparent;
+        }}
+    """
+    
     # Processed Frame
     PROCESSED_FRAME = f"""
         QFrame {{

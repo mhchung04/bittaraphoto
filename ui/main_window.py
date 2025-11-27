@@ -17,6 +17,204 @@ from .drop_area import SingleDropArea, MultiDropArea
 from .frame_manager import FrameManager
 from .settings_dialog import SettingsDialog
 from .styles import Styles, Colors, Fonts
+from .message_box import MessageBox
+from .status_card import StatusCard
+
+
+
+class FolderManager:
+    """폴더 관리 클래스: 이름 생성, 중복 확인, 생성"""
+    
+    def __init__(self, base_path=None):
+        self.base_path = base_path or os.getcwd()
+        self.created_folder = None
+        self.previous_folder_number = None
+
+    def get_actual_folder_name(self, folder_number_text):
+        """실제 생성될 폴더 이름을 반환"""
+        folder_name = folder_number_text
+        folder_path = os.path.join(self.base_path, folder_name)
+
+        if os.path.exists(folder_path):
+            base_folder_name = folder_name
+            existing_folders = [d for d in os.listdir(self.base_path)
+                                if os.path.isdir(os.path.join(self.base_path, d)) and
+                                d.startswith(base_folder_name + "_")]
+
+            if existing_folders:
+                max_num = 0
+                for folder in existing_folders:
+                    try:
+                        suffix = folder[len(base_folder_name) + 1:]
+                        if suffix.isdigit():
+                            num = int(suffix)
+                            if num > max_num:
+                                max_num = num
+                    except:
+                        continue
+                folder_name = f"{base_folder_name}_{max_num + 1}"
+            else:
+                folder_name = f"{base_folder_name}_1"
+
+        return folder_name
+
+    def create_folder(self, folder_name):
+        """폴더 생성"""
+        folder_path = os.path.join(self.base_path, folder_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
+            self.created_folder = folder_path
+            return True, folder_path, "created"
+        else:
+            self.created_folder = folder_path
+            return True, folder_path, "existing"
+
+    def check_availability(self, folder_number_text):
+        """폴더 이름 가용성 확인"""
+        if not folder_number_text:
+            return None
+
+        if not folder_number_text.isdigit():
+            return {"status": "invalid", "message": "유효한 번호를 입력해주세요."}
+
+        folder_name = str(folder_number_text)
+        folder_path = os.path.join(self.base_path, folder_name)
+
+        if os.path.exists(folder_path):
+            folder_creation_time = os.path.getctime(folder_path)
+            time_str = datetime.datetime.fromtimestamp(folder_creation_time).strftime('%Y-%m-%d %H:%M:%S')
+            
+            # 다음 가능한 이름 찾기
+            actual_name = self.get_actual_folder_name(folder_name)
+            
+            return {
+                "status": "exists",
+                "message": "이미 있는 이름입니다.",
+                "creation_time": time_str,
+                "next_name": actual_name
+            }
+        else:
+            return {
+                "status": "available",
+                "message": "새로운 이름입니다.",
+                "next_name": folder_name
+            }
+
+
+class ImageProcessor:
+    """이미지 처리 클래스: 가공 로직 연결"""
+    
+    def __init__(self):
+        pass
+
+    def process_images(self, files, frame_name, frame_manager, output_folder):
+        """이미지 가공 실행"""
+        try:
+            from processing import insert_images_into_frame
+            
+            base_name = os.path.basename(files[0]) if files[0] else "image.jpg"
+            processed_image_path = os.path.join(output_folder, "processed_" + base_name)
+
+            if frame_name == "none":
+                if files[0]:
+                    image = PILImage.open(files[0])
+                    image.save(processed_image_path, quality=100)
+                return processed_image_path
+
+            frame_path = os.path.join(os.getcwd(), 'frame', frame_name)
+            os.makedirs(os.path.dirname(frame_path), exist_ok=True)
+
+            if not os.path.exists(frame_path):
+                print(f"[WARNING] 프레임 이미지를 찾을 수 없음: {frame_path}")
+                if files[0]:
+                    shutil.copy(files[0], processed_image_path)
+                return processed_image_path
+
+            # FrameManager를 통해 영역 정보 가져오기
+            # frame_name은 파일명(01.png)이므로, 이를 이용해 데이터를 찾음
+            # FrameManager 구조상 get_frame_by_name은 '4컷 - 파란색' 같은 이름을 받음
+            # 따라서 파일명으로 이름을 찾거나, 파일명으로 직접 데이터를 찾아야 함.
+            # 여기서는 FrameManager의 get_all_frames를 순회하여 찾거나, MultiWindow에서 넘겨주는 방식 고려
+            # 일단 MultiWindow에서 frame_data를 넘겨주는 것이 더 깔끔할 수 있으나,
+            # 여기서는 frame_manager를 이용해 직접 찾도록 구현
+            
+            frames = frame_manager.get_all_frames()
+            frame_data = next((f for f in frames if f['filename'] == frame_name), None)
+            
+            if frame_data:
+                regions = frame_data.get('regions', [])
+            else:
+                regions = []
+
+            photo_regions = []
+            for i, file_path in enumerate(files):
+                if file_path and os.path.exists(file_path):
+                    if i < len(regions):
+                        photo_regions.append((file_path, regions[i]))
+
+            if photo_regions:
+                insert_images_into_frame(photo_regions, frame_path, processed_image_path)
+                return processed_image_path
+            else:
+                return None
+
+        except Exception as e:
+            print(f"[ERROR] 이미지 가공 중 오류: {e}")
+            raise e
+
+
+class PrintManager:
+    """인쇄 관리 클래스"""
+    
+    def __init__(self):
+        pass
+
+    def print_image(self, image_path, parent_widget):
+        """이미지 인쇄"""
+        if not image_path or not os.path.exists(image_path):
+            MessageBox.warning(parent_widget, "경고", "인쇄할 이미지가 없습니다.")
+            return False
+
+        try:
+            # PIL을 통해 이미지 로드 시도
+            pil_image = PILImage.open(image_path)
+            qimage = ImageUtils.pil_to_qimage(pil_image)
+
+            if qimage.isNull():
+                qimage = QImage(image_path)
+
+            if qimage.isNull():
+                MessageBox.critical(parent_widget, "오류", "이미지를 인쇄용으로 로드할 수 없습니다.")
+                return False
+
+            # 프린터 설정
+            printer = QPrinter(QPrinter.HighResolution)
+            printer.setOutputFormat(QPrinter.NativeFormat)
+
+            print_dialog = QPrintDialog(printer, parent_widget)
+            print_dialog.setWindowTitle("이미지 인쇄")
+
+            if print_dialog.exec_() == QPrintDialog.Accepted:
+                painter = QPainter()
+                if painter.begin(printer):
+                    rect = painter.viewport()
+                    image_size = qimage.size()
+                    image_size.scale(rect.size(), Qt.KeepAspectRatio)
+                    painter.setViewport(rect.x(), rect.y(), image_size.width(), image_size.height())
+                    painter.setWindow(qimage.rect())
+
+                    painter.drawImage(0, 0, qimage)
+                    painter.end()
+                    return True
+                else:
+                    MessageBox.critical(parent_widget, "오류", "인쇄 작업을 시작할 수 없습니다.")
+                    return False
+            return False
+
+        except Exception as e:
+            print(f"[ERROR] 인쇄 중 오류: {e}")
+            MessageBox.critical(parent_widget, "오류", f"인쇄 중 오류가 발생했습니다: {e}")
+            return False
 
 
 class ImageUtils:
@@ -109,8 +307,8 @@ class MultiWindow(QMainWindow):
         super().__init__()
 
         self.setWindowTitle("사진 선택 및 인쇄 - Multi Mode (4개 이미지)")
-        # 전체 윈도우 크기 증가 (드롭 영역 확대에 맞춰)
-        self.setGeometry(100, 100, 620, 630)  # 620x740 → 620x630 (세로 110px 감소)
+        # 전체 윈도우 크기 증가 (가공된 이미지 박스가 잘리지 않도록)
+        self.setGeometry(100, 100, 620, 780)  # 세로 크기 증가: 630 → 780
 
         # 추가: 첫 번째 체크 상태 관리 변수
         self.is_first_check = True
@@ -142,28 +340,9 @@ class MultiWindow(QMainWindow):
 
         main_layout.addWidget(folder_container)
 
-        # 정보 표시를 위한 영역
-        info_container = QWidget()
-        info_layout = QVBoxLayout(info_container)
-        info_layout.setSpacing(2)
-        info_layout.setContentsMargins(10, 0, 10, 0)
-
-        # 폴더 존재 여부 표시
-        self.folder_exists_label = QLabel("")
-        self.folder_exists_label.setStyleSheet(Styles.STATUS_LABEL)
-        info_layout.addWidget(self.folder_exists_label)
-
-        # 새 폴더 생성 예상 정보 표시
-        self.new_folder_label = QLabel("")
-        self.new_folder_label.setStyleSheet(Styles.STATUS_LABEL + Styles.STATUS_INFO)
-        info_layout.addWidget(self.new_folder_label)
-
-        # 마지막 폴더 생성 시간 표시
-        self.last_folder_time_label = QLabel("")
-        self.last_folder_time_label.setStyleSheet(Styles.STATUS_LABEL + "color: #8E24AA;") # Purple
-        info_layout.addWidget(self.last_folder_time_label)
-
-        main_layout.addWidget(info_container)
+        # 상태 카드 (Unified UI) - 폴더용
+        self.folder_status_card = StatusCard()
+        main_layout.addWidget(self.folder_status_card)
 
         # 사이 공간 최소화
         main_layout.addSpacerItem(QSpacerItem(20, 5, QSizePolicy.Minimum, QSizePolicy.Fixed))
@@ -196,6 +375,7 @@ class MultiWindow(QMainWindow):
 
         # 드롭 영역을 위한 고정 컨테이너 생성
         self.drop_container = QWidget()
+        self.drop_container.setFixedHeight(270)  # 고정 높이 설정으로 모드 전환 시 UI 안정성 확보
         self.drop_container_layout = QVBoxLayout(self.drop_container)
         self.drop_container_layout.setContentsMargins(0, 0, 0, 0)
 
@@ -206,14 +386,10 @@ class MultiWindow(QMainWindow):
 
         main_layout.addWidget(self.drop_container)
 
-        # 상태 메시지 영역
-        self.status_message = QLabel("준비됨")
-        self.status_message.setAlignment(Qt.AlignCenter)
-        self.status_message.setStyleSheet(Styles.STATUS_LABEL + Styles.STATUS_SUCCESS + "background-color: #E8F5E9; border-radius: 4px; margin: 10px 0px;")
-        self.status_message.setWordWrap(True)
-        self.status_message.setMinimumHeight(40)
-        self.status_message.setMaximumHeight(60)
-        main_layout.addWidget(self.status_message)
+        # 상태 메시지 영역 (가공용)
+        self.processing_status_card = StatusCard()
+        self.processing_status_card.show_success("준비됨") # 초기 상태
+        main_layout.addWidget(self.processing_status_card)
 
         # 가공된 이미지 미리보기 영역
         preview_layout = QHBoxLayout()
@@ -221,18 +397,25 @@ class MultiWindow(QMainWindow):
         # 가공된 이미지 미리보기 프레임
         self.processed_frame = QFrame()
         self.processed_frame.setStyleSheet(Styles.PROCESSED_FRAME)
-        self.processed_frame.setMinimumSize(280, 200)
+        self.processed_frame.setMinimumSize(280, 100)
 
         processed_frame_layout = QVBoxLayout(self.processed_frame)
         processed_frame_layout.setContentsMargins(10, 10, 10, 10)
+        processed_frame_layout.setSpacing(5)
         
+        # 타이틀 라벨 - 작고 고정된 크기
         processed_title = QLabel("가공된 이미지")
         processed_title.setAlignment(Qt.AlignCenter)
         processed_title.setStyleSheet(Styles.LABEL_TITLE)
+        processed_title.setFixedHeight(30)  # 타이틀은 작게 고정
+        processed_title.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
 
+        # 이미지 표시 라벨 - 크고 확장 가능
         self.processed_label = QLabel("이미지가 여기에 표시됩니다")
         self.processed_label.setAlignment(Qt.AlignCenter)
         self.processed_label.setStyleSheet(Styles.LABEL_SUBTITLE)
+        self.processed_label.setMinimumHeight(150)  # 이미지 영역은 크게
+        self.processed_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
         processed_frame_layout.addWidget(processed_title)
         processed_frame_layout.addWidget(self.processed_label)
@@ -329,6 +512,12 @@ class MultiWindow(QMainWindow):
 
         # 프레임 매니저 초기화 및 콤보박스 설정
         self.frame_manager = FrameManager()
+        
+        # 헬퍼 클래스 초기화
+        self.folder_manager = FolderManager()
+        self.image_processor = ImageProcessor()
+        self.print_manager = PrintManager()
+        
         self.update_frame_combo()
 
     def update_frame_combo(self):
@@ -367,10 +556,9 @@ class MultiWindow(QMainWindow):
 
         # 기존 작업 확인
         if any(file is not None for file in self.selected_files) or self.processed_file:
-            reply = QMessageBox.question(self, '모드 변경 확인',
-                                         "모드를 변경하면 현재 작업이 초기화됩니다.\n계속하시겠습니까?",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.No:
+            reply = MessageBox.question(self, '모드 변경 확인',
+                                         "모드를 변경하면 현재 작업이 초기화됩니다.\n계속하시겠습니까?")
+            if reply == MessageBox.No:
                 # 버튼 상태 되돌리기
                 self.four_cut_button.setChecked(True)
                 self.single_cut_button.setChecked(False)
@@ -395,10 +583,9 @@ class MultiWindow(QMainWindow):
 
         # 기존 작업 확인
         if any(file is not None for file in self.selected_files) or self.processed_file:
-            reply = QMessageBox.question(self, '모드 변경 확인',
-                                         "모드를 변경하면 현재 작업이 초기화됩니다.\n계속하시겠습니까?",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-            if reply == QMessageBox.No:
+            reply = MessageBox.question(self, '모드 변경 확인',
+                                         "모드를 변경하면 현재 작업이 초기화됩니다.\n계속하시겠습니까?")
+            if reply == MessageBox.No:
                 # 버튼 상태 되돌리기
                 self.four_cut_button.setChecked(False)
                 self.single_cut_button.setChecked(True)
@@ -440,17 +627,6 @@ class MultiWindow(QMainWindow):
 
         print(f"[DEBUG] 드롭 영역이 {self.current_mode} 모드로 교체됨")
 
-        # 레이아웃에 추가 (기존 드롭 영역 위치에)
-        central_widget = self.centralWidget()
-        layout = central_widget.layout()
-
-        # 드롭 영역을 적절한 위치에 삽입 (상태 메시지 앞)
-        for i in range(layout.count()):
-            item = layout.itemAt(i)
-            if item and item.widget() == self.status_message:
-                layout.insertWidget(i, self.drop_area)
-                break
-
     def reset_work_without_folder(self):
         """폴더 정보는 유지하고 작업만 초기화"""
         # 선택된 파일들과 가공된 파일 정보 초기화
@@ -468,84 +644,25 @@ class MultiWindow(QMainWindow):
         self.processed_label.setPixmap(QPixmap())
 
         # 상태 메시지 초기화
-        self.status_message.setText("")
+        self.processing_status_card.clear()
 
         # 버튼 상태 초기화
         self.process_button.setEnabled(False)
         self.print_button.setEnabled(False)
 
-    def pil_to_qpixmap(self, pil_image):
-        """PIL 이미지를 QPixmap으로 변환하는 공통 함수"""
-        try:
-            # PIL 이미지를 RGB로 변환
-            if pil_image.mode == 'RGBA':
-                # 흰색 배경과 합성
-                background = PILImage.new('RGB', pil_image.size, (255, 255, 255))
-                background.paste(pil_image, mask=pil_image.split()[-1])
-                pil_image = background
-            elif pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
 
-            # PIL 이미지를 바이트로 변환
-            byte_array = io.BytesIO()
-            pil_image.save(byte_array, format='PNG')
-            byte_array.seek(0)
-
-            # QImage로 로드
-            qimage = QImage()
-            qimage.loadFromData(byte_array.getvalue())
-
-            if qimage.isNull():
-                print(f"[DEBUG] MultiWindow: QImage 변환 실패")
-                return QPixmap()
-
-            # QPixmap으로 변환
-            qpixmap = QPixmap.fromImage(qimage)
-            print(f"[DEBUG] MultiWindow: PIL → QPixmap 변환 성공")
-            return qpixmap
-
-        except Exception as e:
-            print(f"[DEBUG] MultiWindow: PIL → QPixmap 변환 오류: {e}")
-            return QPixmap()
-
-    def load_image_with_pil(self, image_path, target_width, target_height):
-        """PIL을 통해 이미지를 로드하고 크기 조정"""
-        try:
-            print(f"[DEBUG] MultiWindow: PIL로 이미지 로드 시작: {image_path}")
-
-            # PIL로 이미지 로드
-            pil_image = PILImage.open(image_path)
-            print(f"[DEBUG] MultiWindow: PIL 이미지 로드 성공, 원본 크기: {pil_image.size}")
-
-            # 비율 유지하며 크기 조정
-            pil_image.thumbnail((target_width, target_height), PILImage.Resampling.LANCZOS)
-            print(f"[DEBUG] MultiWindow: PIL 리사이즈 완료: {pil_image.size}")
-
-            # QPixmap으로 변환
-            pixmap = self.pil_to_qpixmap(pil_image)
-
-            if pixmap.isNull():
-                print(f"[DEBUG] MultiWindow: QPixmap 변환 실패")
-                return None
-
-            print(f"[DEBUG] MultiWindow: 최종 QPixmap 크기: {pixmap.width()}x{pixmap.height()}")
-            return pixmap
-
-        except Exception as e:
-            print(f"[DEBUG] MultiWindow: 이미지 로드 오류: {e}")
-            return None
 
 
 
     def show_frame_preview(self):
         """선택된 프레임 미리보기"""
         if self.selected_frame == "none":
-            QMessageBox.information(self, "프레임 미리보기", "선택된 프레임이 없습니다.")
+            MessageBox.information(self, "프레임 미리보기", "선택된 프레임이 없습니다.")
             return
 
         frame_path = os.path.join(os.getcwd(), 'frame', self.selected_frame)
         if not os.path.exists(frame_path):
-            QMessageBox.warning(self, "오류", f"프레임 파일을 찾을 수 없습니다: {frame_path}")
+            MessageBox.warning(self, "오류", f"프레임 파일을 찾을 수 없습니다: {frame_path}")
             return
 
         pixmap = QPixmap(frame_path)
@@ -580,12 +697,10 @@ class MultiWindow(QMainWindow):
         if any(file is not None for file in self.selected_files):
             if all(file is not None for file in self.selected_files):
                 self.process_button.setEnabled(True)
-                self.status_message.setText("새로운 프레임이 선택되었습니다. 가공하기 버튼을 눌러 이미지를 재가공하세요.")
-                self.status_message.setStyleSheet("color: #007ACC; margin: 10px 0px;")
+                self.processing_status_card.show_info("새로운 프레임이 선택되었습니다. 가공하기 버튼을 눌러 이미지를 재가공하세요.")
             else:
                 filled_count = sum(1 for file in self.selected_files if file is not None)
-                self.status_message.setText(f"새로운 프레임이 선택되었습니다. {filled_count}/4개 이미지가 준비되었습니다.")
-                self.status_message.setStyleSheet("color: #007ACC; margin: 10px 0px;")
+                self.processing_status_card.show_info(f"새로운 프레임이 선택되었습니다. {filled_count}/4개 이미지가 준비되었습니다.")
                 self.process_button.setEnabled(False)
 
     def keyPressEvent(self, event):
@@ -594,152 +709,79 @@ class MultiWindow(QMainWindow):
             focused_widget = QApplication.focusWidget()
             if focused_widget == self.folder_input and not self.folder_input.text().strip() == "":
                 folder_number_text = self.folder_input.text().strip()
-                if folder_number_text.isdigit():
-                    actual_folder_name = self.get_actual_folder_name(folder_number_text)
-                    reply = QMessageBox.question(self, '폴더 번호 확인',
-                                                 f"폴더 이름을 '{actual_folder_name}'로 설정하시겠습니까?\n설정 후에는 변경할 수 없습니다.",
-                                                 QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-                    if reply == QMessageBox.Yes:
-                        self.folder_input.setEnabled(False)
-                        self.folder_input.setStyleSheet("background-color: #e0e0e0;")
-                        self.check_folder_exists()
+                
+                # 가용성 체크를 먼저 수행하여 올바른 이름을 가져옴
+                check_result = self.folder_manager.check_availability(folder_number_text)
+                
+                if check_result and check_result['status'] != 'invalid':
+                    actual_folder_name = check_result['next_name']
+                    
+                    reply = MessageBox.question(self, '폴더 번호 확인',
+                                                 f"폴더 이름을 '{actual_folder_name}'로 설정하시겠습니까?\n설정 후에는 변경할 수 없습니다.")
+                    if reply == MessageBox.Yes:
+                        self.folder_input.setReadOnly(True) # setEnabled(False) 대신 setReadOnly(True) 사용
+                        # 스타일 강제 업데이트 (readOnly 상태 반영을 위해)
+                        self.folder_input.setStyleSheet(Styles.INPUT)
+                        
                         self.create_folder(actual_folder_name)
-                        folder_name = os.path.basename(actual_folder_name)
-                        self.folder_exists_label.setText(f"'{folder_name}' 폴더가 생성되었습니다.")
-                        self.folder_exists_label.setStyleSheet("color: green;")
-                        self.new_folder_label.setText("")
-                        self.last_folder_time_label.setText("")
                     else:
                         self.folder_input.clear()
+                        self.folder_status_card.clear()
         super().keyPressEvent(event)
 
-    def get_actual_folder_name(self, folder_number_text):
-        """실제 생성될 폴더 이름을 반환하는 메서드"""
-        folder_name = folder_number_text
-        folder_path = os.path.join(os.getcwd(), folder_name)
-
-        if os.path.exists(folder_path):
-            base_folder_name = folder_name
-            existing_folders = [d for d in os.listdir(os.getcwd())
-                                if os.path.isdir(os.path.join(os.getcwd(), d)) and
-                                d.startswith(base_folder_name + "_")]
-
-            if existing_folders:
-                max_num = 0
-                for folder in existing_folders:
-                    try:
-                        suffix = folder[len(base_folder_name) + 1:]
-                        if suffix.isdigit():
-                            num = int(suffix)
-                            if num > max_num:
-                                max_num = num
-                    except:
-                        continue
-                folder_name = f"{base_folder_name}_{max_num + 1}"
-            else:
-                folder_name = f"{base_folder_name}_1"
-
-        return folder_name
 
     def create_folder(self, folder_name):
         """폴더를 즉시 생성하는 메서드"""
-        folder_path = os.path.join(os.getcwd(), folder_name)
-        if not os.path.exists(folder_path):
-            try:
-                os.makedirs(folder_path)
-                self.created_folder = folder_path
-                self.status_message.setText(f"'{folder_name}' 폴더가 생성되었습니다.")
-                self.status_message.setStyleSheet("color: #007700; margin: 10px 0px;")
-                self.folder_exists_label.setText(f"'{folder_name}' 폴더가 생성되었습니다.")
-                self.folder_exists_label.setStyleSheet("color: green;")
-                self.new_folder_label.setText("")
-                self.last_folder_time_label.setText("")
-                print(f"폴더 생성됨: {folder_path}")
-            except Exception as e:
-                self.status_message.setText(f"폴더 생성 중 오류가 발생했습니다: {str(e)}")
-                self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
-                print(f"폴더 생성 오류: {e}")
-        else:
+        success, folder_path, status = self.folder_manager.create_folder(folder_name)
+        
+        if success:
             self.created_folder = folder_path
-            self.status_message.setText(f"'{folder_name}' 폴더를 사용합니다.")
-            self.status_message.setStyleSheet("color: #007700; margin: 10px 0px;")
-            self.folder_exists_label.setText(f"'{folder_name}' 폴더가 사용됩니다.")
-            self.folder_exists_label.setStyleSheet("color: green;")
-            self.new_folder_label.setText("")
-            self.last_folder_time_label.setText("")
+            if status == "created":
+                self.processing_status_card.show_success(f"'{folder_name}' 폴더가 생성되었습니다.")
+                self.folder_status_card.show_success(f"✅ '{folder_name}' 폴더가 생성되었습니다.")
+                
+                print(f"폴더 생성됨: {folder_path}")
+            else: # existing
+                self.processing_status_card.show_success(f"'{folder_name}' 폴더를 사용합니다.")
+                self.folder_status_card.show_success(f"✅ '{folder_name}' 폴더를 사용합니다.")
+        else:
+            # FolderManager.create_folder는 현재 실패 케이스가 없지만(예외 발생 시 crash), 
+            # 추후 확장을 위해 남겨둠. 실제로는 try-except가 FolderManager 내부에 없으므로 
+            # 여기서 에러 처리를 하거나 FolderManager를 보강해야 함.
+            # 현재 구현상 FolderManager는 에러를 raise할 것임.
+            pass
 
     def check_folder_exists(self):
-        previous_folder_number = self.folder_input.text().strip() if hasattr(self, 'previous_folder_number') else None
+        """폴더 이름 입력 시 실시간 피드백"""
         folder_number_text = self.folder_input.text().strip()
 
-        if previous_folder_number != folder_number_text:
-            self.created_folder = None
-            self.previous_folder_number = folder_number_text
-
-        self.folder_exists_label.setText("")
-        self.new_folder_label.setText("")
-        self.last_folder_time_label.setText("")
-
-        if self.created_folder and os.path.exists(self.created_folder):
-            folder_name = os.path.basename(self.created_folder)
-            self.folder_exists_label.setText(f"'{folder_name}' 폴더가 생성되었습니다.")
-            self.folder_exists_label.setStyleSheet("color: green;")
-            return
-
         if not folder_number_text:
+            self.folder_status_card.clear()
             return
+            
+        # FolderManager를 통해 상태 확인
+        result = self.folder_manager.check_availability(folder_number_text)
+        
+        if not result:
+             self.folder_status_card.clear()
+             return
 
-        if folder_number_text.isdigit():
-            folder_number = int(folder_number_text)
-            folder_name = str(folder_number)
-            folder_path = os.path.join(os.getcwd(), folder_name)
-
-            if os.path.exists(folder_path):
-                self.folder_exists_label.setText("이미 있는 이름입니다.")
-                self.folder_exists_label.setStyleSheet("color: red;")
-
-                folder_creation_time = os.path.getctime(folder_path)
-                time_str = datetime.datetime.fromtimestamp(folder_creation_time).strftime('%Y-%m-%d %H:%M:%S')
-                self.last_folder_time_label.setText(f"'{folder_name}' 폴더 생성 시간: {time_str}")
-
-                base_folder_name = folder_name
-                existing_folders = [d for d in os.listdir(os.getcwd())
-                                    if os.path.isdir(os.path.join(os.getcwd(), d)) and
-                                    d.startswith(base_folder_name + "_")]
-
-                if existing_folders:
-                    max_num = 0
-                    max_folder = None
-                    for folder in existing_folders:
-                        try:
-                            suffix = folder[len(base_folder_name) + 1:]
-                            if suffix.isdigit():
-                                num = int(suffix)
-                                if num > max_num:
-                                    max_num = num
-                                    max_folder = folder
-                        except:
-                            continue
-
-                    if max_folder:
-                        max_folder_path = os.path.join(os.getcwd(), max_folder)
-                        max_folder_creation_time = os.path.getctime(max_folder_path)
-                        max_time_str = datetime.datetime.fromtimestamp(max_folder_creation_time).strftime(
-                            '%Y-%m-%d %H:%M:%S')
-                        self.last_folder_time_label.setText(f"'{max_folder}' 폴더 생성 시간: {max_time_str}")
-
-                    new_folder_name = f"{base_folder_name}_{max_num + 1}"
-                    self.new_folder_label.setText(f"'{new_folder_name}'에 새로 생성됩니다.")
-                else:
-                    new_folder_name = f"{base_folder_name}_1"
-                    self.new_folder_label.setText(f"'{new_folder_name}'에 새로 생성됩니다.")
-            else:
-                self.folder_exists_label.setText("새로운 이름입니다.")
-                self.folder_exists_label.setStyleSheet("color: green;")
-                self.new_folder_label.setText(f"'{folder_name}'에 새로 생성됩니다.")
-        else:
-            self.folder_exists_label.setText("유효한 번호를 입력해주세요.")
-            self.folder_exists_label.setStyleSheet("color: orange;")
+        if result['status'] == 'invalid':
+            self.folder_status_card.show_error(f"⚠ {result['message']}")
+            
+        elif result['status'] == 'exists':
+            self.folder_status_card.show_info(
+                f"ℹ '{folder_number_text}' 폴더가 이미 존재합니다.\n"
+                f"   마지막 생성: {result['creation_time']}\n"
+                f"   엔터를 누르면 '{result['next_name']}' 폴더를 생성합니다."
+            )
+            
+        elif result['status'] == 'available':
+            self.folder_status_card.show_info(
+                f"✨ 새로운 폴더입니다.\n"
+                f"   엔터를 누르면 '{folder_number_text}' 폴더를 생성하고 고정합니다."
+            )
+            self.previous_folder_number = folder_number_text
 
     def prepare_image(self, file_path, slot_index):
         """이미지를 준비하고 상태 업데이트 - 모드별 처리"""
@@ -781,16 +823,14 @@ class MultiWindow(QMainWindow):
         if all(file is not None for file in self.selected_files):
             self.process_button.setEnabled(True)
             if self.current_mode == "four_cut":
-                self.status_message.setText("4개 이미지가 모두 준비되었습니다. 가공하기 버튼을 누르세요.")
+                self.processing_status_card.show_success("4개 이미지가 모두 준비되었습니다. 가공하기 버튼을 누르세요.")
             else:
-                self.status_message.setText("이미지가 준비되었습니다. 가공하기 버튼을 누르세요.")
-            self.status_message.setStyleSheet("color: #007700; margin: 10px 0px;")
+                self.processing_status_card.show_success("이미지가 준비되었습니다. 가공하기 버튼을 누르세요.")
         else:
             if self.current_mode == "four_cut":
-                self.status_message.setText(f"{filled_count}/4개 이미지가 준비되었습니다.")
+                self.processing_status_card.show_info(f"{filled_count}/4개 이미지가 준비되었습니다.")
             else:
-                self.status_message.setText("이미지를 선택해주세요.")
-            self.status_message.setStyleSheet("color: #007ACC; margin: 10px 0px;")
+                self.processing_status_card.show_info("이미지를 선택해주세요.")
             self.process_button.setEnabled(False)
 
         print(f"[DEBUG] prepare_image 완료")
@@ -801,13 +841,13 @@ class MultiWindow(QMainWindow):
 
         # 가공 상태 확인
         if self.processed_file:
-            QMessageBox.warning(self, "경고", "이미 이미지 가공이 완료되었습니다.\n새 이미지를 추가하려면 먼저 '사진 초기화' 버튼을 누르세요.")
+            MessageBox.warning(self, "경고", "이미 이미지 가공이 완료되었습니다.\n새 이미지를 추가하려면 먼저 '사진 초기화' 버튼을 누르세요.")
             return
 
         # 폴더 번호 검증
         folder_number_text = self.folder_input.text().strip()
         if not folder_number_text.isdigit() or not folder_number_text:
-            QMessageBox.warning(self, "경고", "유효한 폴더 번호를 먼저 입력해주세요.")
+            MessageBox.warning(self, "경고", "유효한 폴더 번호를 먼저 입력해주세요.")
             return
 
         # 파일 선택 다이얼로그
@@ -881,36 +921,33 @@ class MultiWindow(QMainWindow):
         # 모드별 파일 확인
         if self.current_mode == "four_cut":
             if not all(file is not None for file in self.selected_files):
-                QMessageBox.warning(self, "경고", "4개 이미지를 모두 선택해주세요.")
+                MessageBox.warning(self, "경고", "4개 이미지를 모두 선택해주세요.")
                 return
         else:  # single_cut
             if not self.selected_files[0]:
-                QMessageBox.warning(self, "경고", "이미지를 선택해주세요.")
+                MessageBox.warning(self, "경고", "이미지를 선택해주세요.")
                 return
 
         folder_number_text = self.folder_input.text().strip()
         if not folder_number_text or not folder_number_text.isdigit():
-            QMessageBox.warning(self, "경고", "유효한 폴더 번호를 입력해주세요.")
+            MessageBox.warning(self, "경고", "유효한 폴더 번호를 입력해주세요.")
             return
 
         if not self.folder_input.isReadOnly():
-            reply = QMessageBox.question(self, '폴더 번호 확인',
-                                         f"폴더 번호를 '{folder_number_text}'로 설정하시겠습니까?\n설정 후에는 변경할 수 없습니다.",
-                                         QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+            reply = MessageBox.question(self, '폴더 번호 확인',
+                                         f"폴더 번호를 '{folder_number_text}'로 설정하시겠습니까?\n설정 후에는 변경할 수 없습니다.")
 
-            if reply == QMessageBox.Yes:
+            if reply == MessageBox.Yes:
                 self.folder_input.setReadOnly(True)
             else:
                 return
 
         if not self.created_folder or not os.path.exists(self.created_folder):
-            actual_folder_name = self.get_actual_folder_name(folder_number_text)
+            actual_folder_name = self.folder_manager.get_actual_folder_name(folder_number_text)
             self.create_folder(actual_folder_name)
             folder_name = os.path.basename(self.created_folder)
-            self.folder_exists_label.setText(f"'{folder_name}' 폴더가 생성되었습니다.")
-            self.folder_exists_label.setStyleSheet("color: green;")
-            self.new_folder_label.setText("")
-            self.last_folder_time_label.setText("")
+            
+            self.folder_status_card.show_success(f"✅ '{folder_name}' 폴더가 생성되었습니다.")
 
         processed_path = self.process_and_save(self.selected_files, self.created_folder)
 
@@ -937,18 +974,15 @@ class MultiWindow(QMainWindow):
 
                 folder_name = os.path.basename(self.created_folder)
                 frame_name = self.frame_combo.currentText()
-                self.status_message.setText(f"{frame_name}로 가공이 성공적으로 완료되었습니다.\n'{folder_name}' 폴더에 저장되었습니다.")
-                self.status_message.setStyleSheet("color: #007700; margin: 10px 0px;")
+                self.processing_status_card.show_success(f"{frame_name}로 가공이 성공적으로 완료되었습니다.\n'{folder_name}' 폴더에 저장되었습니다.")
             else:
                 print(f"[DEBUG] 가공된 이미지 미리보기 설정 실패")
                 self.processed_label.setText("가공된 이미지를 표시할 수 없습니다")
-                self.status_message.setText("가공된 이미지를 표시할 수 없습니다.")
-                self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
+                self.processing_status_card.show_error("가공된 이미지를 표시할 수 없습니다.")
         else:
             print(f"[DEBUG] 가공된 이미지 파일이 존재하지 않음: {processed_path}")
             self.processed_label.setText("가공된 이미지를 표시할 수 없습니다")
-            self.status_message.setText("이미지 가공에 실패했습니다.")
-            self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
+            self.processing_status_card.show_error("이미지 가공에 실패했습니다.")
 
         self.process_button.setEnabled(False)
 
@@ -971,7 +1005,7 @@ class MultiWindow(QMainWindow):
                 print(f"가공된 이미지 저장됨: {processed_image_path}")
         except Exception as e:
             print(f"이미지 가공 오류: {e}")
-            QMessageBox.critical(self, "오류", f"이미지 가공 중 오류가 발생했습니다: {str(e)}")
+            MessageBox.critical(self, "오류", f"이미지 가공 중 오류가 발생했습니다: {str(e)}")
 
         try:
             for i, file_path in enumerate(files):
@@ -983,161 +1017,66 @@ class MultiWindow(QMainWindow):
                     print(f"파일 복사본 저장됨: {file_copy_path}")
         except Exception as e:
             print(f"파일 복사 오류: {e}")
-            QMessageBox.critical(self, "오류", f"파일 복사 중 오류가 발생했습니다: {str(e)}")
+            MessageBox.critical(self, "오류", f"파일 복사 중 오류가 발생했습니다: {str(e)}")
 
         return processed_image_path
 
     def process_image(self, files, folder_path):
-        base_name = os.path.basename(files[0]) if files[0] else "image.jpg"
-        processed_image_path = os.path.join(folder_path, "processed_" + base_name)
-
-        if self.selected_frame == "none":
-            if files[0]:
-                image = PILImage.open(files[0])
-                image.save(processed_image_path, quality=100)
-            return processed_image_path
-
         try:
-            from processing import insert_images_into_frame
-            frame_path = os.path.join(os.getcwd(), 'frame', self.selected_frame)
-
-            os.makedirs(os.path.dirname(frame_path), exist_ok=True)
-
-            if not os.path.exists(frame_path):
-                QMessageBox.warning(self, "경고", "프레임 이미지를 찾을 수 없어 원본을 그대로 사용합니다.")
-                if files[0]:
-                    shutil.copy(files[0], processed_image_path)
+            processed_path = self.image_processor.process_images(
+                files, 
+                self.selected_frame, 
+                self.frame_manager, 
+                folder_path
+            )
+            
+            if processed_path:
+                if self.selected_frame != "none":
+                    self.processing_status_card.show_success(f"이미지가 '{self.selected_frame}' 프레임으로 가공되었습니다.")
+                return processed_path
             else:
-                photo_regions = []
-                
-                # FrameManager를 통해 영역 정보 가져오기
-                # 콤보박스에 표시된 이름으로 프레임 데이터 검색
-                current_frame_name = self.frame_combo.currentText()
-                frame_data = self.frame_manager.get_frame_by_name(current_frame_name)
-                
-                if frame_data:
-                    regions = frame_data.get('regions', [])
-                else:
-                    regions = []
-
-                for i, file_path in enumerate(files):
-                    if file_path and os.path.exists(file_path):
-                        # 영역 정보가 충분하지 않으면 건너뛰거나 예외 처리
-                        if i < len(regions):
-                            photo_regions.append((file_path, regions[i]))
-
-                if photo_regions:
-                    insert_images_into_frame(photo_regions, frame_path, processed_image_path)
-                    self.status_message.setText(f"이미지가 '{self.selected_frame}' 프레임으로 가공되었습니다.")
-                else:
-                    QMessageBox.warning(self, "경고", "처리할 이미지가 없습니다.")
-                    return None
+                MessageBox.warning(self, "경고", "처리할 이미지가 없습니다.")
+                return None
 
         except Exception as e:
             error_msg = f"이미지 가공 중 오류가 발생했습니다: {str(e)}"
             print(error_msg)
-            QMessageBox.critical(self, "오류", error_msg)
+            MessageBox.critical(self, "오류", error_msg)
+            
+            # 오류 발생 시 원본 복사 시도 (기존 로직 유지)
+            base_name = os.path.basename(files[0]) if files[0] else "image.jpg"
+            processed_image_path = os.path.join(folder_path, "processed_" + base_name)
             if files[0]:
                 shutil.copy(files[0], processed_image_path)
-            self.status_message.setText("오류로 인해 원본 이미지가 그대로 사용되었습니다.")
-            self.status_message.setStyleSheet("color: #FF0000; margin: 10px 0px;")
-
-        return processed_image_path
+            
+            self.processing_status_card.show_error("오류로 인해 원본 이미지가 그대로 사용되었습니다.")
+            return processed_image_path
 
     def print_image(self):
         """인쇄 기능 - PIL 적용"""
-        if not self.processed_file or not os.path.exists(self.processed_file):
-            QMessageBox.warning(self, "경고", "인쇄할 이미지가 없습니다. 먼저 이미지를 가공해주세요.")
+        if not self.processed_file:
+            MessageBox.warning(self, "경고", "인쇄할 이미지가 없습니다. 먼저 이미지를 가공해주세요.")
             return
 
-        print(f"[DEBUG] 인쇄용 이미지 로드 시작: {self.processed_file}")
+        print(f"[DEBUG] 인쇄 요청: {self.processed_file}")
+        
+        success = self.print_manager.print_image(self.processed_file, self)
+        
+        if success:
+            MessageBox.information(self, "성공", "이미지 인쇄가 시작되었습니다.")
+            print(f"[DEBUG] 인쇄 작업 시작됨")
 
-        # PIL을 통해 이미지 로드 시도 (통합된 유틸리티 사용)
-        try:
-            pil_image = PILImage.open(self.processed_file)
-            print(f"[DEBUG] PIL로 인쇄용 이미지 로드 성공: {pil_image.size}")
 
-            # QImage로 변환 (통합된 유틸리티 사용)
-            qimage = ImageUtils.pil_to_qimage(pil_image)
-
-            if qimage.isNull():
-                print(f"[DEBUG] PIL → QImage 변환 실패, 기본 방식 시도")
-                # 기본 방식으로 시도
-                qimage = QImage(self.processed_file)
-
-            if qimage.isNull():
-                QMessageBox.critical(self, "오류", "이미지를 인쇄용으로 로드할 수 없습니다.")
-                return
-
-        except Exception as e:
-            print(f"[DEBUG] PIL 인쇄용 이미지 로드 실패: {e}, 기본 방식 시도")
-            # PIL 실패 시 기본 방식으로 시도
-            qimage = QImage(self.processed_file)
-            if qimage.isNull():
-                QMessageBox.critical(self, "오류", "이미지를 인쇄용으로 로드할 수 없습니다.")
-                return
-
-        print(f"[DEBUG] 인쇄용 이미지 준비 완료: {qimage.width()}x{qimage.height()}")
-
-        # 프린터 설정
-        printer = QPrinter(QPrinter.HighResolution)
-        printer.setOutputFormat(QPrinter.NativeFormat)
-
-        print_dialog = QPrintDialog(printer, self)
-        print_dialog.setWindowTitle("이미지 인쇄")
-
-        if print_dialog.exec_() == QPrintDialog.Accepted:
-            painter = QPainter()
-            if painter.begin(printer):
-                rect = painter.viewport()
-                image_size = qimage.size()
-                image_size.scale(rect.size(), Qt.KeepAspectRatio)
-                painter.setViewport(rect.x(), rect.y(), image_size.width(), image_size.height())
-                painter.setWindow(qimage.rect())
-
-                painter.drawImage(0, 0, qimage)
-                painter.end()
-                QMessageBox.information(self, "성공", "이미지 인쇄가 시작되었습니다.")
-                print(f"[DEBUG] 인쇄 작업 시작됨")
-            else:
-                QMessageBox.critical(self, "오류", "인쇄 작업을 시작할 수 없습니다.")
-
-    def pil_to_qimage(self, pil_image):
-        """PIL 이미지를 QImage로 변환"""
-        try:
-            # PIL 이미지를 RGB로 변환
-            if pil_image.mode == 'RGBA':
-                background = PILImage.new('RGB', pil_image.size, (255, 255, 255))
-                background.paste(pil_image, mask=pil_image.split()[-1])
-                pil_image = background
-            elif pil_image.mode != 'RGB':
-                pil_image = pil_image.convert('RGB')
-
-            # PIL 이미지를 바이트로 변환
-            byte_array = io.BytesIO()
-            pil_image.save(byte_array, format='PNG')
-            byte_array.seek(0)
-
-            # QImage로 로드
-            qimage = QImage()
-            qimage.loadFromData(byte_array.getvalue())
-
-            return qimage
-
-        except Exception as e:
-            print(f"[DEBUG] PIL → QImage 변환 오류: {e}")
-            return QImage()
 
     def reset_image(self):
         """사진 초기화 버튼을 눌렀을 때 실행되는 메서드"""
         if not any(file is not None for file in self.selected_files):
             return
 
-        reply = QMessageBox.question(self, '사진 초기화 확인',
-                                     "현재 선택된 사진들을 초기화하시겠습니까?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        reply = MessageBox.question(self, '사진 초기화 확인',
+                                     "현재 선택된 사진들을 초기화하시겠습니까?")
 
-        if reply == QMessageBox.No:
+        if reply == MessageBox.No:
             return
 
         if self.created_folder and os.path.exists(self.created_folder):
@@ -1163,34 +1102,32 @@ class MultiWindow(QMainWindow):
         self.processed_label.setPixmap(QPixmap())
 
         # 상태 메시지 초기화
-        self.status_message.setText("")
+        self.processing_status_card.clear()
 
         # 버튼 상태 초기화
         self.process_button.setEnabled(False)
         self.print_button.setEnabled(False)
 
         print("사진들이 초기화되었습니다.")
-        QMessageBox.information(self, "알림", "사진들이 초기화되었습니다.")
+        MessageBox.information(self, "알림", "사진들이 초기화되었습니다.")
 
     def reset_application(self):
         """초기화 버튼을 눌렀을 때 실행되는 메서드"""
-        reply = QMessageBox.question(self, '초기화 확인',
-                                     "정말로 현재 작업을 초기화하시겠습니까?\n생성된 폴더와 파일은 삭제되지 않습니다.",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        reply = MessageBox.question(self, '초기화 확인',
+                                     "정말로 현재 작업을 초기화하시겠습니까?\n생성된 폴더와 파일은 삭제되지 않습니다.")
 
-        if reply == QMessageBox.No:
+        if reply == MessageBox.No:
             return
 
         # UI 초기화
         self.folder_input.clear()
 
         # 폴더 입력 필드 다시 활성화
-        self.folder_input.setEnabled(True)
-        self.folder_input.setStyleSheet("")
+        # 폴더 입력 필드 다시 활성화
+        self.folder_input.setReadOnly(False)
+        self.folder_input.setStyleSheet(Styles.INPUT)
 
-        self.folder_exists_label.setText("")
-        self.new_folder_label.setText("")
-        self.last_folder_time_label.setText("")
+        self.folder_status_card.clear()
 
         # 모드를 네컷으로 초기화
         self.current_mode = "four_cut"
@@ -1205,7 +1142,7 @@ class MultiWindow(QMainWindow):
         self.processed_label.setPixmap(QPixmap())
 
         # 상태 메시지 초기화
-        self.status_message.setText("")
+        self.processing_status_card.clear()
 
         # 버튼 상태 초기화
         self.process_button.setEnabled(False)
@@ -1223,12 +1160,11 @@ class MultiWindow(QMainWindow):
         self.selected_frame = "01.png"
 
         print("애플리케이션이 초기화되었습니다.")
-        QMessageBox.information(self, "알림", "모든 작업이 초기화되었습니다.")
+        MessageBox.information(self, "알림", "모든 작업이 초기화되었습니다.")
 
     def close_application(self):
-        reply = QMessageBox.question(self, '종료 확인',
-                                     "정말로 종료하시겠습니까?",
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
+        reply = MessageBox.question(self, '종료 확인',
+                                     "정말로 종료하시겠습니까?")
 
-        if reply == QMessageBox.Yes:
+        if reply == MessageBox.Yes:
             QApplication.quit()

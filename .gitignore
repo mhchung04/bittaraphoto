@@ -32,3 +32,5 @@ dist/
 # ui 폴더 예외 (UI 컴포넌트 모듈)
 !ui/
 !ui/**
+
+frames.json

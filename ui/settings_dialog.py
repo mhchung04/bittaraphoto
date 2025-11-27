@@ -9,6 +9,7 @@ from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
 from PIL import Image
 from .styles import Styles, Colors, Fonts
+from .message_box import MessageBox
 
 class RegionInputWidget(QGroupBox):
     """개별 영역 좌표 입력 위젯 (박스 형태) - Compact"""
@@ -534,7 +535,7 @@ class SettingsDialog(QDialog):
     def auto_detect_regions(self):
         filename = self.filename_edit.text()
         if not filename:
-            QMessageBox.warning(self, "경고", "파일명을 먼저 입력하거나 선택해주세요.")
+            MessageBox.warning(self, "경고", "파일명을 먼저 입력하거나 선택해주세요.")
             return
 
         filepath = os.path.join(os.getcwd(), 'frame', filename)
@@ -542,7 +543,7 @@ class SettingsDialog(QDialog):
             if os.path.exists(filename):
                 filepath = filename
             else:
-                QMessageBox.warning(self, "오류", f"파일을 찾을 수 없습니다: {filepath}")
+                MessageBox.warning(self, "오류", f"파일을 찾을 수 없습니다: {filepath}")
                 return
 
         try:
@@ -613,10 +614,13 @@ class SettingsDialog(QDialog):
             self.rearrange_regions()
             self.update_preview()
             
-            QMessageBox.information(self, "완료", f"{len(final_regions)}개의 투명 영역을 감지했습니다.")
+            self.rearrange_regions()
+            self.update_preview()
+            
+            MessageBox.information(self, "완료", f"{len(final_regions)}개의 투명 영역을 감지했습니다.")
 
         except Exception as e:
-            QMessageBox.critical(self, "오류", f"이미지 분석 중 오류 발생: {e}")
+            MessageBox.critical(self, "오류", f"이미지 분석 중 오류 발생: {e}")
 
     def add_new_frame(self):
         new_frame = {
@@ -632,12 +636,11 @@ class SettingsDialog(QDialog):
     def delete_current_frame(self):
         row = self.frame_list.currentRow()
         if row < 0:
-            QMessageBox.warning(self, "경고", "삭제할 프레임을 선택해주세요.")
+            MessageBox.warning(self, "경고", "삭제할 프레임을 선택해주세요.")
             return
             
-        reply = QMessageBox.question(self, "삭제 확인", "정말로 이 프레임을 삭제하시겠습니까?",
-                                     QMessageBox.Yes | QMessageBox.No)
-        if reply == QMessageBox.Yes:
+        reply = MessageBox.question(self, "삭제 확인", "정말로 이 프레임을 삭제하시겠습니까?")
+        if reply == MessageBox.Yes:
             self.frame_manager.delete_frame(row)
             self.refresh_frame_list()
             self.name_edit.clear()
@@ -667,17 +670,16 @@ class SettingsDialog(QDialog):
     def save_changes(self):
         """변경사항을 파일에 저장"""
         self.frame_manager.save_frames()
-        QMessageBox.information(self, "저장 완료", "모든 변경사항이 저장되었습니다.")
+        MessageBox.information(self, "저장 완료", "모든 변경사항이 저장되었습니다.")
 
     def cancel_changes(self):
         """변경사항 취소 및 다시 불러오기"""
-        reply = QMessageBox.question(self, "취소 확인", "저장하지 않은 변경사항이 사라집니다. 계속하시겠습니까?",
-                                     QMessageBox.Yes | QMessageBox.No)
-        if reply == QMessageBox.Yes:
+        reply = MessageBox.question(self, "취소 확인", "저장하지 않은 변경사항이 사라집니다. 계속하시겠습니까?")
+        if reply == MessageBox.Yes:
             self.frame_manager.load_frames()
             self.refresh_frame_list()
             self.load_selected_frame(0) # 첫 번째 프레임 선택
-            QMessageBox.information(self, "취소 완료", "변경사항이 취소되었습니다.")
+            MessageBox.information(self, "취소 완료", "변경사항이 취소되었습니다.")
 
     def highlight_input_widget(self, index):
         """특정 인덱스의 입력 위젯 하이라이트"""
