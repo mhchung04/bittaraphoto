@@ -12,6 +12,16 @@
 
 ---
 
+## 🎬 데모
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="프로그램 데모" width="50%">
+</p>
+
+<p align="center"><em>전체 워크플로우: 폴더 생성 → 이미지 업로드 → 프레임 합성 → 인쇄</em></p>
+
+---
+
 ## 🎯 프로젝트 개요
 
 ### 배경
@@ -110,6 +120,13 @@ def fit_image_to_region(img: Image.Image, region_size: tuple[int, int]) -> Image
 - 최종 결과물 확인 후 인쇄/저장
 
 ### 5. 자동 투명 영역 인식 알고리즘
+
+<p align="center">
+  <img src="docs/images/auto_detection.gif" alt="자동 영역 감지 데모" width="50%">
+</p>
+
+<p align="center"><em>프레임 템플릿의 투명 영역 자동 감지</em></p>
+
 ```python
 def detect_transparent_regions(frame_image: Image.Image) -> List[Tuple[int, int, int, int]]:
     """

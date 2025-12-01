@@ -12,6 +12,16 @@
 
 ---
 
+## 🎬 Demo
+
+<p align="center">
+  <img src="docs/images/demo.gif" alt="Application Demo" width="50%">
+</p>
+
+<p align="center"><em>Complete workflow: Folder creation → Image upload → Frame composition → Print</em></p>
+
+---
+
 ## 🎯 Project Overview
 
 ### Background
@@ -109,6 +119,13 @@ Optimally fits photos to frame regions while preserving aspect ratio.
 - Print/save after confirming final result
 
 ### 5. Automatic Transparent Area Recognition
+
+<p align="center">
+  <img src="docs/images/auto_detection.gif" alt="Auto Detection Demo" width="50%">
+</p>
+
+<p align="center"><em>Automatic detection of transparent regions in frame templates</em></p>
+
 ```python
 def detect_transparent_regions(frame_image: Image.Image) -> List[Tuple[int, int, int, int]]:
     """

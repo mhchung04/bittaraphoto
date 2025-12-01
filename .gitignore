@@ -33,5 +33,9 @@ dist/
 !ui/
 !ui/**
 
+# docs 폴더 예외 (문서 및 이미지)
+!docs/
+!docs/**
+
 frames.json
 
