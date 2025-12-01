@@ -109,6 +109,25 @@ def fit_image_to_region(img: Image.Image, region_size: tuple[int, int]) -> Image
 - 이미지 드롭 시 즉시 미리보기 생성
 - 최종 결과물 확인 후 인쇄/저장
 
+### 5. 자동 투명 영역 인식 알고리즘
+```python
+def detect_transparent_regions(frame_image: Image.Image) -> List[Tuple[int, int, int, int]]:
+    """
+    PNG 프레임 템플릿의 투명 영역 감지
+    - 알파 채널을 분석하여 투명 영역 식별
+    - 각 투명 영역의 경계 상자(bounding box) 계산
+    - 자동 사진 배치를 위한 좌표 (x1, y1, x2, y2) 반환
+    """
+```
+**알고리즘 상세**:
+- **알파 채널 분석**: PNG 알파 채널을 스캔하여 완전 투명 픽셀(alpha = 0) 식별
+- **영역 감지**: 인접한 투명 픽셀을 그룹화하여 연속된 영역 형성
+- **경계 상자 계산**: 각 영역의 최소 경계 상자 계산
+- **자동 설정**: `frames.json`에 수동으로 좌표를 입력할 필요 제거
+
+비기술 사용자도 투명 영역이 있는 PNG 파일을 디자인하기만 하면 새로운 프레임 템플릿을 만들 수 있습니다.
+
+
 ---
 
 ## 🏗 프로젝트 구조

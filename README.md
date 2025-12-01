@@ -108,6 +108,25 @@ Optimally fits photos to frame regions while preserving aspect ratio.
 - Instant preview generation on image drop
 - Print/save after confirming final result
 
+### 5. Automatic Transparent Area Recognition
+```python
+def detect_transparent_regions(frame_image: Image.Image) -> List[Tuple[int, int, int, int]]:
+    """
+    Detects transparent areas in PNG frame templates
+    - Analyzes alpha channel to identify transparent regions
+    - Calculates bounding boxes for each transparent area
+    - Returns coordinates (x1, y1, x2, y2) for automatic photo placement
+    """
+```
+**Algorithm Details**:
+- **Alpha Channel Analysis**: Scans PNG alpha channel to identify fully transparent pixels (alpha = 0)
+- **Region Detection**: Groups adjacent transparent pixels into contiguous regions
+- **Bounding Box Calculation**: Computes minimum bounding box (min_x, min_y, max_x, max_y) for each region
+- **Automatic Configuration**: Eliminates need for manual coordinate entry in `frames.json`
+
+This enables non-technical users to create new frame templates by simply designing PNG files with transparent areas where photos should appear.
+
+
 ---
 
 ## 🏗 Project Structure
