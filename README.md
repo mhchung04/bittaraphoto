@@ -188,11 +188,8 @@ pip install -r requirements.txt
 
 ### 3. Running
 ```bash
-# Run Multi mode (4-cut)
+# Run the application
 python main.py
-
-# Or run directly
-python multi.py
 ```
 
 ### 4. How to Use

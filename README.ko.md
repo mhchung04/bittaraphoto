@@ -189,11 +189,8 @@ pip install -r requirements.txt
 
 ### 3. 실행
 ```bash
-# Multi 모드 (4컷) 실행
+# 프로그램 실행
 python main.py
-
-# 또는 직접 실행
-python multi.py
 ```
 
 ### 4. 사용 방법
