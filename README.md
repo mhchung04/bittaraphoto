@@ -227,7 +227,7 @@ python main.py
 
 ### Business Impact Understanding
 - **Quantitative Performance Measurement**: Tracking error rates, onboarding time, technical support request reduction
-- **Operational Efficiency**: 87% reduction in technical support requests, 95% reduction in frame change time
+- **Operational Efficiency**: reduction in technical support requests, reduction in frame change time
 - **Reusability**: Providing value to future event teams through standardized workflows
 
 ---
