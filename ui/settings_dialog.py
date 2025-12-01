@@ -1,4 +1,5 @@
 import os
+import copy
 from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QListWidget, 
                              QLabel, QLineEdit, QPushButton, QMessageBox, 
                              QComboBox, QWidget, QScrollArea, QFormLayout,
@@ -219,6 +220,8 @@ class SettingsDialog(QDialog):
         
         # 초기화
         self.region_widgets = []
+        # 임시 프레임 데이터 (Deep Copy)
+        self.temp_frames = copy.deepcopy(self.frame_manager.get_all_frames())
         self.refresh_frame_list()
 
     def create_general_tab(self):
@@ -490,7 +493,7 @@ class SettingsDialog(QDialog):
 
     def refresh_frame_list(self):
         self.frame_list.clear()
-        frames = self.frame_manager.get_all_frames()
+        frames = self.temp_frames
         for frame in frames:
             item = QListWidgetItem(frame['name'])
             # 썸네일 로드 시도
@@ -518,7 +521,7 @@ class SettingsDialog(QDialog):
         if row < 0:
             return
             
-        frames = self.frame_manager.get_all_frames()
+        frames = self.temp_frames
         frame = frames[row]
         
         # UI 업데이트 시 시그널 차단 방지
@@ -716,7 +719,7 @@ class SettingsDialog(QDialog):
             "type": "four_cut",
             "regions": [[0,0,0,0], [0,0,0,0], [0,0,0,0], [0,0,0,0]]
         }
-        self.frame_manager.add_frame(new_frame)
+        self.temp_frames.append(new_frame)
         self.refresh_frame_list()
         self.frame_list.setCurrentRow(self.frame_list.count() - 1)
 
@@ -728,7 +731,8 @@ class SettingsDialog(QDialog):
             
         reply = MessageBox.question(self, "삭제 확인", "정말로 이 프레임을 삭제하시겠습니까?")
         if reply == MessageBox.Yes:
-            self.frame_manager.delete_frame(row)
+            if 0 <= row < len(self.temp_frames):
+                del self.temp_frames[row]
             self.refresh_frame_list()
             self.name_edit.clear()
             self.filename_edit.clear()
@@ -750,12 +754,15 @@ class SettingsDialog(QDialog):
             "regions": regions
         }
         
-        self.frame_manager.update_frame(row, frame_data)
+        if 0 <= row < len(self.temp_frames):
+            self.temp_frames[row] = frame_data
         # 리스트 아이템 텍스트 업데이트
         self.frame_list.item(row).setText(self.name_edit.text())
 
     def save_changes(self):
         """변경사항을 파일에 저장"""
+        # 변경된 임시 데이터를 실제 매니저에 반영
+        self.frame_manager.set_frames(copy.deepcopy(self.temp_frames))
         self.frame_manager.save_frames()
         MessageBox.information(self, "저장 완료", "모든 변경사항이 저장되었습니다.")
         
@@ -767,9 +774,16 @@ class SettingsDialog(QDialog):
         """변경사항 취소 및 다시 불러오기"""
         reply = MessageBox.question(self, "취소 확인", "저장하지 않은 변경사항이 사라집니다. 계속하시겠습니까?")
         if reply == MessageBox.Yes:
-            self.frame_manager.load_frames()
+            # 원본 데이터 다시 로드
+            self.temp_frames = copy.deepcopy(self.frame_manager.get_all_frames())
             self.refresh_frame_list()
-            self.load_selected_frame(0) # 첫 번째 프레임 선택
+            if self.temp_frames:
+                self.load_selected_frame(0) # 첫 번째 프레임 선택
+            else:
+                self.name_edit.clear()
+                self.filename_edit.clear()
+                self.clear_regions()
+                self.preview_widget.set_image(None)
             MessageBox.information(self, "취소 완료", "변경사항이 취소되었습니다.")
 
     def highlight_input_widget(self, index):

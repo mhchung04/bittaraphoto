@@ -50,3 +50,7 @@ class FrameManager:
         if 0 <= index < len(self.frames):
             del self.frames[index]
             # self.save_frames() # 자동 저장 제거
+
+    def set_frames(self, frames):
+        """프레임 리스트 전체 업데이트"""
+        self.frames = frames
