@@ -18,7 +18,7 @@ def fit_image_to_region(img: Image.Image, region_size: tuple[int, int]) -> Image
 
 
 def insert_images_into_frame(photo_regions: List[Tuple[str, Tuple[int, int, int, int]]], frame_path: str,
-                             output_path: str) -> None:
+                             output_path: str, expand_pixels: int = 0) -> None:
     """
     프레임 이미지의 투명 영역에 여러 사진을 자동 맞춤 삽입 후, PNG 무손실 또는 JPEG 최고 품질로 저장합니다.
 
@@ -26,11 +26,13 @@ def insert_images_into_frame(photo_regions: List[Tuple[str, Tuple[int, int, int,
     - photo_regions: [(photo_path, (left_x, top_y, right_x, bottom_y)), ...] 형태의 리스트
     - frame_path: 프레임 이미지 경로
     - output_path: 결과 이미지 저장 경로
+    - expand_pixels: 합성 영역을 확장할 픽셀 수 (기본값: 0)
     """
     print(f"[DEBUG] insert_images_into_frame 시작")
     print(f"[DEBUG] 프레임 경로: {frame_path}")
     print(f"[DEBUG] 출력 경로: {output_path}")
     print(f"[DEBUG] 사진 영역 수: {len(photo_regions)}")
+    print(f"[DEBUG] 확장 픽셀: {expand_pixels}")
 
     # 프레임 이미지 불러오기
     frame = Image.open(frame_path).convert('RGBA')
@@ -49,6 +51,15 @@ def insert_images_into_frame(photo_regions: List[Tuple[str, Tuple[int, int, int,
         # right_x가 None인 경우 처리 (기존 호환성)
         if right_x is None:
             right_x = frame_w - left_x
+            
+        # 영역 확장 적용
+        if expand_pixels > 0:
+            left_x = max(0, left_x - expand_pixels)
+            top_y = max(0, top_y - expand_pixels)
+            right_x = min(frame_w, right_x + expand_pixels)
+            bottom_y = min(frame_h, bottom_y + expand_pixels)
+            print(f"[DEBUG] 확장된 영역 좌표: ({left_x}, {top_y}, {right_x}, {bottom_y})")
+
         region_w = right_x - left_x
         region_h = bottom_y - top_y
         print(f"[DEBUG] 영역 크기: {region_w}x{region_h}")

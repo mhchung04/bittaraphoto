@@ -17,13 +17,14 @@ class SingleDropArea(QFrame):
         super().__init__(parent)
         self.setFrameStyle(QFrame.NoFrame)
         self.setLineWidth(0)
-        # 한컷 모드용 크기 (MultiDropArea와 동일하게 맞춤)
-        self.setMinimumSize(540, 260)
-        self.setMaximumHeight(260)  # 최대 높이도 고정하여 확장 방지
+        self.setObjectName("singleDropArea")
+        # 버튼 제거로 인한 높이 조정 (240 고정, 너비는 확장 가능)
+        self.setMinimumWidth(540)
+        self.setFixedHeight(240)
         self.setAcceptDrops(False)
 
         self.setStyleSheet(f"""
-            SingleDropArea {{
+            #singleDropArea {{
                 background-color: #fafafa;
                 border-radius: 10px;
                 border: 1px solid {Colors.BORDER};
@@ -32,7 +33,7 @@ class SingleDropArea(QFrame):
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(5)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(10, 5, 10, 5)
 
         # 제목 라벨
         title_label = QLabel("이미지 드롭 영역 (1개) - 폴더 번호를 먼저 입력하세요")
@@ -45,6 +46,7 @@ class SingleDropArea(QFrame):
 
         # 단일 드롭존 (중앙 배치)
         zone_layout = QHBoxLayout()
+        zone_layout.setContentsMargins(0, 0, 0, 0)
         zone_layout.addStretch()
 
         self.zone1 = DropZone(0, self)
@@ -55,13 +57,6 @@ class SingleDropArea(QFrame):
 
         # 하단 간격을 위한 스페이서 (Vertical Centering)
         main_layout.addStretch(1)
-
-        # 파일 선택 버튼
-        # 파일 선택 버튼
-        self.select_btn = QPushButton("또는 파일 선택")
-        self.select_btn.setFixedSize(140, 32)
-        self.select_btn.setStyleSheet(Styles.BTN_SECONDARY)
-        main_layout.addWidget(self.select_btn, 0, Qt.AlignCenter)
 
         self.parent_window = parent
         self.labels = [self.zone1]
@@ -83,13 +78,14 @@ class MultiDropArea(QFrame):
         super().__init__(parent)
         self.setFrameStyle(QFrame.NoFrame)
         self.setLineWidth(0)
-        # 전체 영역 크기 조정 (드롭존 높이 축소에 맞춰)
-        self.setMinimumSize(540, 260)  # 540x330 → 540x260
-        self.setMaximumHeight(260)  # 최대 높이도 고정하여 확장 방지
+        self.setObjectName("multiDropArea")
+        # 버튼 제거로 인한 높이 조정 (240 고정, 너비는 확장 가능)
+        self.setMinimumWidth(540)
+        self.setFixedHeight(240)
         self.setAcceptDrops(False)
 
         self.setStyleSheet(f"""
-            MultiDropArea {{
+            #multiDropArea {{
                 background-color: #fafafa;
                 border-radius: 10px;
                 border: 1px solid {Colors.BORDER};
@@ -98,7 +94,7 @@ class MultiDropArea(QFrame):
 
         main_layout = QVBoxLayout(self)
         main_layout.setSpacing(5)
-        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setContentsMargins(10, 5, 10, 5)
 
         # 제목 라벨
         title_label = QLabel("이미지 드롭 영역 (4개) - 폴더 번호를 먼저 입력하세요")
@@ -108,6 +104,7 @@ class MultiDropArea(QFrame):
 
         # 상단 행
         top_layout = QHBoxLayout()
+        top_layout.setContentsMargins(0, 0, 0, 0)
         top_layout.setSpacing(8)
 
         self.zone1 = DropZone(0, self)
@@ -122,6 +119,7 @@ class MultiDropArea(QFrame):
 
         # 하단 행
         bottom_layout = QHBoxLayout()
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_layout.setSpacing(8)
 
         self.zone3 = DropZone(2, self)
@@ -132,12 +130,7 @@ class MultiDropArea(QFrame):
 
         main_layout.addLayout(bottom_layout)
 
-        # 파일 선택 버튼
-        # 파일 선택 버튼
-        self.select_btn = QPushButton("또는 파일 선택")
-        self.select_btn.setFixedSize(140, 32)
-        self.select_btn.setStyleSheet(Styles.BTN_SECONDARY)
-        main_layout.addWidget(self.select_btn, 0, Qt.AlignCenter)
+        # 하단 간격을 위한 스페이서 (버튼 위치 고정용) - 버튼이 밖으로 나갔으므로 제거해도 되지만, 여백 유지를 위해 둠 
 
         self.parent_window = parent
         self.labels = [self.zone1, self.zone2, self.zone3, self.zone4]

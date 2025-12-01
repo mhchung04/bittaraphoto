@@ -2,6 +2,9 @@
 BittaraPhoto UI Styles
 Centralized definition of colors, fonts, and stylesheets.
 """
+import os
+from PyQt5.QtGui import QPixmap, QPainter, QColor, QPainterPath
+from PyQt5.QtCore import Qt
 
 class Colors:
     PRIMARY = "#2196F3"       # Ocean Blue
@@ -78,6 +81,11 @@ class Styles:
         QPushButton:hover {{
             background-color: #F0F0F0;
             border-color: #BDBDBD;
+        }}
+        QPushButton:disabled {{
+            background-color: #F5F5F5;
+            color: #BDBDBD;
+            border: 1px solid #E0E0E0;
         }}
     """
 
@@ -167,7 +175,7 @@ class Styles:
 
     # Inputs
     INPUT = f"""
-        QLineEdit, QSpinBox, QComboBox {{
+        QLineEdit, QSpinBox {{
             border: 1px solid {Colors.BORDER};
             border-radius: 4px;
             padding: 4px 8px;
@@ -175,6 +183,37 @@ class Styles:
             font-family: "{Fonts.FAMILY}";
             font-size: 12px;
             color: {Colors.TEXT_PRIMARY};
+        }}
+        QComboBox {{
+            border: 1px solid {Colors.BORDER};
+            border-radius: 4px;
+            padding: 4px 8px;
+            background-color: {Colors.SURFACE};
+            font-family: "{Fonts.FAMILY}";
+            font-size: 12px;
+            color: {Colors.TEXT_PRIMARY};
+            min-height: 20px;
+        }}
+        QComboBox::drop-down {{
+            subcontrol-origin: padding;
+            subcontrol-position: top right;
+            width: 20px;
+            border-left-width: 0px;
+            border-top-right-radius: 3px;
+            border-bottom-right-radius: 3px;
+        }}
+        QComboBox::down-arrow {{
+            image: url(arrow_down.png);
+            width: 12px;
+            height: 12px;
+            margin-right: 6px;
+        }}
+        QComboBox QAbstractItemView {{
+            border: 1px solid {Colors.BORDER};
+            selection-background-color: #E3F2FD;
+            selection-color: {Colors.TEXT_PRIMARY};
+            background-color: {Colors.SURFACE};
+            outline: none;
         }}
         QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{
             border: 2px solid {Colors.PRIMARY};
@@ -361,3 +400,31 @@ class Styles:
             background-color: #F5F5F5;
         }}
     """
+
+    @staticmethod
+    def init_resources():
+        """필요한 리소스 파일 생성 (아이콘 등)"""
+        if not os.path.exists("arrow_down.png"):
+            try:
+                pixmap = QPixmap(12, 12)
+                pixmap.fill(Qt.transparent)
+                painter = QPainter(pixmap)
+                painter.setRenderHint(QPainter.Antialiasing)
+                
+                # Draw triangle pointing down
+                path = QPainterPath()
+                # Center is 6,6. Size approx 8x5
+                # Top-Left: 2, 4
+                # Top-Right: 10, 4
+                # Bottom: 6, 9
+                path.moveTo(3, 4)
+                path.lineTo(9, 4)
+                path.lineTo(6, 8)
+                path.closeSubpath()
+                
+                painter.fillPath(path, QColor(Colors.TEXT_SECONDARY))
+                painter.end()
+                pixmap.save("arrow_down.png")
+                print("Created arrow_down.png")
+            except Exception as e:
+                print(f"Failed to create resource: {e}")

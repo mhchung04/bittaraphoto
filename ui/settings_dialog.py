@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QListWidget,
                              QLabel, QLineEdit, QPushButton, QMessageBox, 
                              QComboBox, QWidget, QScrollArea, QFormLayout,
                              QSpinBox, QGroupBox, QGridLayout, QFileDialog,
-                             QTabWidget, QListWidgetItem, QSplitter)
+                             QTabWidget, QListWidgetItem, QSplitter, QCheckBox)
 from PyQt5.QtCore import Qt, QSize, QRect, pyqtSignal
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
 from PyQt5.QtGui import QPixmap, QPainter, QColor, QPen, QIcon
@@ -187,9 +187,10 @@ class FramePreviewWidget(QLabel):
 
 class SettingsDialog(QDialog):
     """설정 및 프레임 관리 통합 다이얼로그"""
-    def __init__(self, frame_manager, parent=None):
+    def __init__(self, frame_manager, settings_manager, parent=None):
         super().__init__(parent)
         self.frame_manager = frame_manager
+        self.settings_manager = settings_manager
         self.setWindowTitle("설정")
         self.resize(850, 600) # 컴팩트 사이즈
         
@@ -223,12 +224,98 @@ class SettingsDialog(QDialog):
     def create_general_tab(self):
         widget = QWidget()
         layout = QVBoxLayout()
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(15)
         
-        layout.addWidget(QLabel("일반 설정 (준비 중)"))
+        # --- 미리보기 비율 설정 ---
+        ratio_group = QGroupBox("미리보기 기본 비율")
+        ratio_group.setStyleSheet(Styles.GROUP_BOX)
+        ratio_layout = QFormLayout()
+        
+        self.ratio_combo = QComboBox()
+        self.ratio_combo.addItems(["3:2 (Standard)", "4:3", "1:1 (Square)", "16:9"])
+        self.ratio_combo.setStyleSheet(Styles.INPUT)
+        
+        # 현재 설정 불러오기
+        current_ratio = self.settings_manager.get("preview_aspect_ratio", "3:2")
+        index = self.ratio_combo.findText(current_ratio, Qt.MatchStartsWith)
+        if index >= 0:
+            self.ratio_combo.setCurrentIndex(index)
+            
+        self.ratio_combo.currentTextChanged.connect(self.save_general_settings)
+        
+        ratio_layout.addRow("비율 선택:", self.ratio_combo)
+        ratio_group.setLayout(ratio_layout)
+        
+        layout.addWidget(ratio_group)
+
+        # --- 인쇄 설정 ---
+        print_group = QGroupBox("인쇄 설정")
+        print_group.setStyleSheet(Styles.GROUP_BOX)
+        print_layout = QVBoxLayout()
+        print_layout.setContentsMargins(10, 15, 10, 10) # 여백 조정
+
+        self.direct_print_chk = QCheckBox("바로 인쇄하기 (Direct Print)")
+        self.direct_print_chk.setStyleSheet(f"font-family: '{Fonts.FAMILY}'; font-size: 12px;")
+        self.direct_print_chk.setChecked(self.settings_manager.get("direct_print", True))
+        self.direct_print_chk.stateChanged.connect(self.save_general_settings)
+        
+        print_layout.addWidget(self.direct_print_chk)
+        print_group.setLayout(print_layout)
+        
+        print_layout.addWidget(self.direct_print_chk)
+        print_group.setLayout(print_layout)
+        
+        layout.addWidget(print_group)
+
+        # --- 가공 설정 ---
+        process_group = QGroupBox("가공 설정")
+        process_group.setStyleSheet(Styles.GROUP_BOX)
+        process_layout = QFormLayout()
+        
+        self.expand_spin = QSpinBox()
+        self.expand_spin.setRange(0, 100)
+        self.expand_spin.setSuffix(" px")
+        self.expand_spin.setStyleSheet(Styles.INPUT)
+        self.expand_spin.setValue(self.settings_manager.get("expand_pixels", 0))
+        self.expand_spin.valueChanged.connect(self.save_general_settings)
+        
+        process_layout.addRow("합성 영역 확장:", self.expand_spin)
+        process_group.setLayout(process_layout)
+        
+        layout.addWidget(process_group)
         layout.addStretch()
         
         widget.setLayout(layout)
         return widget
+
+    def save_general_settings(self):
+        """일반 설정 즉시 저장"""
+        # 비율 저장
+        ratio_text = self.ratio_combo.currentText()
+        ratio = ratio_text.split(" ")[0]
+        self.settings_manager.set("preview_aspect_ratio", ratio)
+        
+        # 바로 인쇄하기 저장
+        direct_print = self.direct_print_chk.isChecked()
+        self.settings_manager.set("direct_print", direct_print)
+        
+        # 합성 영역 확장 저장
+        old_expand_pixels = self.settings_manager.get("expand_pixels", 0)
+        expand_pixels = self.expand_spin.value()
+        self.settings_manager.set("expand_pixels", expand_pixels)
+        
+        # 메인 윈도우에 변경 알림 (부모가 있으면)
+        if self.parent():
+            self.parent().apply_aspect_ratio()
+            # 인쇄 버튼 UI 업데이트 호출
+            if hasattr(self.parent(), 'update_print_button_ui'):
+                self.parent().update_print_button_ui()
+            
+            # 합성 영역 확장이 변경되었으면 가공 상태 초기화
+            if old_expand_pixels != expand_pixels:
+                if hasattr(self.parent(), 'reset_processed_state'):
+                    self.parent().reset_processed_state()
 
     def create_frame_tab(self):
         widget = QWidget()
@@ -671,6 +758,10 @@ class SettingsDialog(QDialog):
         """변경사항을 파일에 저장"""
         self.frame_manager.save_frames()
         MessageBox.information(self, "저장 완료", "모든 변경사항이 저장되었습니다.")
+        
+        # 프레임 설정이 변경되었으므로 가공 상태 초기화
+        if self.parent() and hasattr(self.parent(), 'reset_processed_state'):
+            self.parent().reset_processed_state()
 
     def cancel_changes(self):
         """변경사항 취소 및 다시 불러오기"""

@@ -4,11 +4,12 @@ DropZone 위젯 모듈
 """
 
 import os
-from PyQt5.QtWidgets import QLabel, QMessageBox, QFrame, QVBoxLayout, QSizePolicy
+from PyQt5.QtWidgets import QLabel, QMessageBox, QFrame, QVBoxLayout, QSizePolicy, QPushButton
 from PyQt5.QtGui import QFont, QPixmap, QPainter, QColor, QImage
 from PyQt5.QtCore import Qt, QRect
 from PIL import Image as PILImage
 from .styles import Styles, Colors, Fonts
+from .toast_message import ToastMessage
 
 class ImageUtils:
     """이미지 변환 및 처리 유틸리티 클래스"""
@@ -59,11 +60,12 @@ class DropZone(QFrame):
         self.setMinimumSize(130, 90) # 최소 크기 설정
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.setFrameStyle(QFrame.StyledPanel | QFrame.Sunken)
+        self.setObjectName("dropZone")
         
-        # 레이아웃 설정 - 더 넓은 여백
+        # 레이아웃 설정 - 이미지 공간 확보를 위해 여백 최소화
         self.layout = QVBoxLayout(self)
-        self.layout.setContentsMargins(8, 8, 8, 8)
-        self.layout.setSpacing(6)
+        self.layout.setContentsMargins(4, 4, 4, 4)
+        self.layout.setSpacing(2)
         
         # 이미지/번호 표시 라벨
         self.image_label = QLabel()
@@ -76,8 +78,30 @@ class DropZone(QFrame):
         self.filename_label.setFont(QFont(Fonts.FAMILY, 9))
         self.filename_label.setStyleSheet(f"color: {Colors.TEXT_SECONDARY};")
         self.filename_label.setWordWrap(True)
-        self.filename_label.setFixedHeight(30) # 여유있는 높이
+        self.filename_label.setFixedHeight(20) # 높이 축소하여 이미지 공간 확보
         self.layout.addWidget(self.filename_label)
+
+        # 삭제 버튼 (우측 상단)
+        self.delete_btn = QPushButton("✕", self)
+        self.delete_btn.setFixedSize(24, 24)
+        self.delete_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: rgba(0, 0, 0, 0.5);
+                color: white;
+                border-radius: 12px;
+                font-weight: bold;
+                border: none;
+            }}
+            QPushButton:hover {{
+                background-color: {Colors.DESTRUCTIVE};
+            }}
+        """)
+        self.delete_btn.setCursor(Qt.PointingHandCursor)
+        self.delete_btn.hide()
+        self.delete_btn.clicked.connect(self.delete_image)
+        
+        # 버튼을 항상 최상위에 표시
+        self.delete_btn.raise_()
 
         # 초기 상태 설정
         self.reset_to_default()
@@ -88,7 +112,7 @@ class DropZone(QFrame):
             return False
 
         folder_number_text = self.parent_drop_area.parent_window.folder_input.text().strip()
-        if not folder_number_text or not folder_number_text.isdigit():
+        if not folder_number_text:
             return False
 
         return True
@@ -130,7 +154,7 @@ class DropZone(QFrame):
                 }
             """)
             
-            # 파일명 설정 - 더 세련된 스타일
+            # 파일명 설정 - 더 세련된 스타일 (배경 제거하여 깔끔하게)
             filename = os.path.basename(image_path)
             self.filename_label.setText(filename)
             self.filename_label.setStyleSheet(f"""
@@ -138,15 +162,14 @@ class DropZone(QFrame):
                     color: {Colors.TEXT_PRIMARY};
                     font-weight: 600;
                     font-size: 11px;
-                    background-color: rgba(255, 255, 255, 0.9);
-                    border-radius: 4px;
-                    padding: 6px 10px;
+                    background-color: transparent;
+                    padding: 2px;
                 }}
             """)
 
             # 스타일 업데이트 (성공) - 모던한 디자인
             self.setStyleSheet(f"""
-                DropZone {{
+                #dropZone {{
                     border: 2px solid {Colors.SUCCESS};
                     border-radius: 12px;
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -154,6 +177,12 @@ class DropZone(QFrame):
                     padding: 8px;
                 }}
             """)
+            
+            # 삭제 버튼 표시 및 위치 조정
+            self.delete_btn.show()
+            self.delete_btn.raise_()
+            # 위치는 resizeEvent에서 조정되지만, 여기서도 한 번 잡아줌
+            self.update_delete_btn_position()
 
         except Exception as e:
             print(f"[DEBUG] Zone {self.zone_id}: 이미지 처리 중 오류: {e}")
@@ -184,13 +213,17 @@ class DropZone(QFrame):
 
         # 스타일 업데이트 (기본) - 부드러운 디자인
         self.setStyleSheet(f"""
-            DropZone {{
+            #dropZone {{
                 border: 2px dashed {Colors.BORDER};
                 border-radius: 12px;
                 background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                                             stop:0 #FAFAFA, stop:1 #F5F5F5);
             }}
         """)
+        
+        # 삭제 버튼 숨기기
+        if hasattr(self, 'delete_btn'):
+            self.delete_btn.hide()
 
     def dragEnterEvent(self, event):
         if hasattr(self.parent_drop_area.parent_window,
@@ -201,7 +234,7 @@ class DropZone(QFrame):
         if event.mimeData().hasUrls():
             event.acceptProposedAction()
             self.setStyleSheet(f"""
-                DropZone {{
+                #dropZone {{
                     border: 2px solid {Colors.PRIMARY};
                     border-radius: 12px;
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -209,12 +242,35 @@ class DropZone(QFrame):
                     padding: 8px;
                 }}
             """)
+        
+        # 삭제 버튼 숨기기
+        if hasattr(self, 'delete_btn'):
+            self.delete_btn.hide()
+
+    def delete_image(self):
+        """이미지 삭제 처리"""
+        if self.image_path:
+            self.reset_to_default()
+            # 메인 윈도우에 알림
+            if hasattr(self.parent_drop_area.parent_window, 'remove_image'):
+                self.parent_drop_area.parent_window.remove_image(self.zone_id)
+
+    def resizeEvent(self, event):
+        """크기 변경 시 삭제 버튼 위치 조정"""
+        super().resizeEvent(event)
+        if hasattr(self, 'delete_btn'):
+            self.update_delete_btn_position()
+            
+    def update_delete_btn_position(self):
+        """삭제 버튼을 우측 상단에 배치"""
+        padding = 5
+        self.delete_btn.move(self.width() - self.delete_btn.width() - padding, padding)
 
     def dragLeaveEvent(self, event):
         if self.image_path:
             # 이미지가 있는 경우 성공 스타일 복구
             self.setStyleSheet(f"""
-                DropZone {{
+                #dropZone {{
                     border: 2px solid {Colors.SUCCESS};
                     border-radius: 12px;
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -225,7 +281,7 @@ class DropZone(QFrame):
         else:
             # 이미지가 없는 경우 기본 스타일 복구
             self.setStyleSheet(f"""
-                DropZone {{
+                #dropZone {{
                     border: 2px dashed {Colors.BORDER};
                     border-radius: 12px;
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
@@ -237,14 +293,20 @@ class DropZone(QFrame):
         # 1. 가공 상태 확인
         if hasattr(self.parent_drop_area.parent_window,
                    'processed_file') and self.parent_drop_area.parent_window.processed_file:
-            QMessageBox.warning(self.parent_drop_area.parent_window, "경고",
-                                "이미 이미지 가공이 완료되었습니다.\n새 이미지를 추가하려면 먼저 '사진 초기화' 버튼을 누르세요.")
+            ToastMessage.show_toast(self.parent_drop_area.parent_window, 
+                                    "이미 이미지 가공이 완료되었습니다. '사진 초기화'를 먼저 해주세요.", 
+                                    type="warning", 
+                                    anchor_widget=self.parent_drop_area.parent_window.reset_image_button)
             event.ignore()
             return
 
         # 2. 폴더 번호 유효성 검사
         if not self.check_folder_validation():
-            QMessageBox.warning(self.parent_drop_area.parent_window, "경고", "유효한 폴더 번호를 먼저 입력해주세요.")
+            ToastMessage.show_toast(self.parent_drop_area.parent_window, 
+                                    "폴더 번호를 먼저 입력해주세요.", 
+                                    type="warning", 
+                                    anchor_widget=self.parent_drop_area.parent_window.folder_input,
+                                    center_x=True)
             self.dragLeaveEvent(event)
             event.ignore()
             return

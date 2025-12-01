@@ -8,7 +8,14 @@ class StatusCard(QFrame):
     """
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.hide() # Initially hidden
+        # self.hide() # Initially hidden -> Removed to keep layout stable
+        self.setFixedHeight(80) # Fixed height for approx 3 lines
+        
+        # Default style to invisible/empty but taking space? 
+        # Or just transparent background?
+        # Let's keep it visible but empty style if needed, or just apply a default style.
+        # For now, we'll just set the size.
+        self.setStyleSheet("background-color: transparent;")
         
         # Layout
         layout = QVBoxLayout(self)
@@ -38,6 +45,7 @@ class StatusCard(QFrame):
         self.show()
         
     def clear(self):
-        """Hide the card"""
+        """Reset the card content but keep it visible to maintain layout"""
         self.label.clear()
-        self.hide()
+        self.setStyleSheet("background-color: transparent;")
+        # self.hide() # Do not hide, to maintain fixed height layout
