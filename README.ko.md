@@ -68,14 +68,14 @@
 └─────────────────────────────┬───────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────────────────┐
-│                       Automation Pipeline Layer                           │
-│                                                                           │
+│                       Automation Pipeline Layer                         │
+│                                                                         │
 │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐              │
 │  │  Folder  │ → │  Image   │ → │  Frame   │ → │  Print   │              │
 │  │  Ledger  │   │ Validate │   │ Compose  │   │  Queue   │              │
 │  └──────────┘   └──────────┘   └──────────┘   └──────────┘              │
 │       ↓              ↓              ↓              ↓                    │
-│ AutoFolderGenerate  Format check  Dynamic layout  Direct output         │
+│   Folder Gen    Format check  Dynamic layout  Direct output             │
 └─────────────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────────────────┐
@@ -91,6 +91,33 @@
 1. **관심사 분리 (Separation of Concerns)**: UI ↔ 파이프라인 ↔ 도메인 로직 독립
 2. **설정 외부화 (Externalized Configuration)**: 코드 수정 없이 프레임 변경 가능
 3. **사용자 중심 설계 (User-Centric Design)**: 비기술 사용자도 직관적으로 사용 가능
+
+### 시스템 워크플로우 (System Workflow)
+
+```mermaid
+flowchart TD
+    Start(("Start / Reset")) --> FolderInput["Folder Input"]
+    FolderInput -- Enter --> FolderCheck{"Valid?"}
+    FolderCheck -- Yes --> FolderLocked["Folder Locked\n(Read-Only)"]
+    FolderLocked --> ModeSelect{"Mode Selection"}
+    ModeSelect -- Change --> ModeReset["Reset Work"] --> ModeSelect
+    ModeSelect -- Keep --> ImageDrop["Image Drop / Select"]
+    ImageDrop --> ImageCopy["Copy to Folder\n(copy_N.jpg)"]
+    ImageCopy --> SlotCheck{"All Slots\nFilled?"}
+    SlotCheck -- No --> ImageDrop
+    SlotCheck -- Yes --> ProcessBtn["Process Button\n(Enabled)"]
+    ProcessBtn -- Click --> Processing["Image Processing\n(Combine with Frame)"]
+    Processing --> Preview["Show Preview\n& Save File"]
+    Preview --> PrintBtn["Print Button"]
+    PrintBtn -- Click --> PrintAction{"Direct Print?"}
+    PrintAction -- Yes --> SysPrint["System Print Dialog"]
+    PrintAction -- No --> ImgView["Open Image Viewer"]
+    
+    Preview -. Reset Image .-> ImageDrop
+    Preview -. Reset All .-> Start
+```
+
+> *상세한 로직, 예외 처리, 롤백 메커니즘은 [Pipeline Structure](pipeline_structure.md) 문서를 참조하세요.*
 
 ---
 

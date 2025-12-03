@@ -68,14 +68,14 @@ During campus festival photobooth operations, 10 non-technical operators faced c
 └─────────────────────────────┬───────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────────────────┐
-│                       Automation Pipeline Layer                           │
-│                                                                           │
+│                       Automation Pipeline Layer                         │
+│                                                                         │
 │  ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐              │
 │  │  Folder  │ → │  Image   │ → │  Frame   │ → │  Print   │              │
 │  │  Ledger  │   │ Validate │   │ Compose  │   │  Queue   │              │
 │  └──────────┘   └──────────┘   └──────────┘   └──────────┘              │
 │       ↓              ↓              ↓              ↓                    │
-│ AutoFolderGenerate  Format check  Dynamic layout  Direct output         │
+│   Folder Gen    Format check  Dynamic layout  Direct output             │
 └─────────────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────▼───────────────────────────────────────────┐
@@ -90,6 +90,33 @@ During campus festival photobooth operations, 10 non-technical operators faced c
 1. **Separation of Concerns**: UI ↔ Pipeline ↔ Domain logic independence
 2. **Externalized Configuration**: Frame changes without code modification
 3. **User-Centric Design**: Intuitive for non-technical users
+
+### System Workflow
+
+```mermaid
+flowchart TD
+    Start(("Start / Reset")) --> FolderInput["Folder Input"]
+    FolderInput -- Enter --> FolderCheck{"Valid?"}
+    FolderCheck -- Yes --> FolderLocked["Folder Locked\n(Read-Only)"]
+    FolderLocked --> ModeSelect{"Mode Selection"}
+    ModeSelect -- Change --> ModeReset["Reset Work"] --> ModeSelect
+    ModeSelect -- Keep --> ImageDrop["Image Drop / Select"]
+    ImageDrop --> ImageCopy["Copy to Folder\n(copy_N.jpg)"]
+    ImageCopy --> SlotCheck{"All Slots\nFilled?"}
+    SlotCheck -- No --> ImageDrop
+    SlotCheck -- Yes --> ProcessBtn["Process Button\n(Enabled)"]
+    ProcessBtn -- Click --> Processing["Image Processing\n(Combine with Frame)"]
+    Processing --> Preview["Show Preview\n& Save File"]
+    Preview --> PrintBtn["Print Button"]
+    PrintBtn -- Click --> PrintAction{"Direct Print?"}
+    PrintAction -- Yes --> SysPrint["System Print Dialog"]
+    PrintAction -- No --> ImgView["Open Image Viewer"]
+    
+    Preview -. Reset Image .-> ImageDrop
+    Preview -. Reset All .-> Start
+```
+
+> *For detailed logic, exception handling, and rollback mechanisms, please refer to the [Pipeline Structure](pipeline_structure.md).*
 
 ---
 

@@ -308,7 +308,7 @@ class MultiWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("사진 선택 및 인쇄 - Multi Mode (4개 이미지)")
+        self.setWindowTitle("Bittara Photo")
         # 전체 윈도우 크기 증가 (가공된 이미지 박스가 잘리지 않도록)
         self.setGeometry(100, 100, 620, 780)  # 세로 크기 증가: 630 → 780
 
@@ -872,10 +872,10 @@ class MultiWindow(QMainWindow):
         if success:
             self.created_folder = folder_path
             if status == "created":
-                ToastMessage.show_toast(self, f"'{folder_name}' 폴더가 생성되었습니다.", type="success", anchor_widget=self.folder_input, center_x=True)
+                ToastMessage.show_toast(self, f"'{folder_name}' 폴더가 생성되었습니다.", type="success", anchor_widget=self.folder_input, center_x=True, position="top")
                 print(f"폴더 생성됨: {folder_path}")
             else: # existing
-                ToastMessage.show_toast(self, f"'{folder_name}' 폴더를 사용합니다.", type="success", anchor_widget=self.folder_input, center_x=True)
+                ToastMessage.show_toast(self, f"'{folder_name}' 폴더를 사용합니다.", type="success", anchor_widget=self.folder_input, center_x=True, position="top")
             
             # 폴더 열기 버튼 활성화
             self.open_folder_btn.setEnabled(True)
@@ -1130,7 +1130,7 @@ class MultiWindow(QMainWindow):
             
             folder_name = os.path.basename(self.created_folder)
             
-            ToastMessage.show_toast(self, f"'{folder_name}' 폴더가 생성되었습니다.", type="success", anchor_widget=self.folder_input, center_x=True)
+            ToastMessage.show_toast(self, f"'{folder_name}' 폴더가 생성되었습니다.", type="success", anchor_widget=self.folder_input, center_x=True, position="top")
 
         processed_path = self.process_and_save(self.selected_files, self.created_folder)
 

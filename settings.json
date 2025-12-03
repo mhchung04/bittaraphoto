@@ -1,5 +1,5 @@
 {
     "preview_aspect_ratio": "3:2",
-    "direct_print": true,
+    "direct_print": false,
     "expand_pixels": 6
 }

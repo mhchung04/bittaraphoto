@@ -278,6 +278,11 @@ class DropZone(QFrame):
                     padding: 8px;
                 }}
             """)
+            
+            # 삭제 버튼 다시 표시
+            if hasattr(self, 'delete_btn'):
+                self.delete_btn.show()
+                self.delete_btn.raise_()
         else:
             # 이미지가 없는 경우 기본 스타일 복구
             self.setStyleSheet(f"""
