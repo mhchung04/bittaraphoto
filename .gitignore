@@ -38,4 +38,5 @@ dist/
 !docs/**
 
 frames.json
-
+/frame
+*/__pycache__

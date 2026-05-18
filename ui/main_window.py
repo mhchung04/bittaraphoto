@@ -1259,7 +1259,13 @@ class MultiWindow(QMainWindow):
         else:
             # 사진 보기 (기본 뷰어 실행)
             if os.path.exists(self.processed_file):
-                os.startfile(self.processed_file)
+                import subprocess, sys
+                if sys.platform == "darwin":
+                    subprocess.run(["open", self.processed_file])
+                elif sys.platform == "win32":
+                    os.startfile(self.processed_file)
+                else:
+                    subprocess.run(["xdg-open", self.processed_file])
             else:
                 MessageBox.warning(self, "오류", "파일을 찾을 수 없습니다.")
 
